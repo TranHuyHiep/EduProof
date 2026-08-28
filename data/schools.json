@@ -6,6 +6,7 @@
       "shortName": "HU",
       "country": "Vietnam",
       "issuerKeyId": "hu-issuer-key-01",
+      "issuerPublicKey": "MCowBQYDK2VwAyEAm1Yp2nlrAhuaYU1DiMdbQcMxHZX0iTulR89De+AznaU=",
       "verified": true
     }
   ]

@@ -1,47 +1,141 @@
 @import "tailwindcss";
 
+/* ── Design language: the document ────────────────────────────────────────
+ *
+ * EduProof digitises something that already has a visual language — the
+ * transcript, the sealed certificate, the notarised letter. So the interface
+ * borrows from paper rather than from dashboards: warm stock instead of cool
+ * grey, a serif for anything that carries authority, hairline rules instead of
+ * floating cards, and a seal where a signature would go.
+ *
+ * The discipline that keeps it from becoming decoration: rules divide, cards
+ * do not float, and one accent colour does all the work.
+ */
+
 @theme {
-  --color-brand-50:  #eef4ff;
-  --color-brand-100: #dbe6fe;
-  --color-brand-200: #bfd3fe;
-  --color-brand-500: #3b6ef6;
-  --color-brand-600: #2557e5;
-  --color-brand-700: #1d45bd;
-  --color-ink:       #0f172a;
-  --color-muted:     #64748b;
-  --color-line:      #e6eaf2;
-  --color-surface:   #ffffff;
-  --color-canvas:    #f6f8fc;
+  /* Paper and ink. Warm, low-contrast — reads as stock, not as a white screen. */
+  --color-paper:      #faf9f5;
+  --color-paper-deep: #f4f2ea;
+  --color-surface:    #ffffff;
+
+  --color-ink:        #1a1814;
+  --color-ink-soft:   #4a453d;
+  --color-ink-faint:  #8a8378;
+
+  /* Hairlines. Two weights: structural, and barely-there. */
+  --color-rule:       #ddd8cc;
+  --color-rule-soft:  #ebe7dc;
+
+  /* One accent. Oxblood — the colour of an official stamp, not of a token. */
+  --color-seal-50:    #fbf3f2;
+  --color-seal-100:   #f6e4e2;
+  --color-seal-200:   #e9c4bf;
+  --color-seal-500:   #a6402f;
+  --color-seal-600:   #8f3527;
+  --color-seal-700:   #74291d;
+
+  /* Outcomes. Muted enough to sit on paper without shouting. */
+  --color-proven:     #2f6b46;
+  --color-proven-bg:  #f0f5f1;
+  --color-failed:     #9a3d2c;
+  --color-failed-bg:  #fbf1ef;
+  --color-caution:    #8a6416;
+  --color-caution-bg: #fbf6e8;
+
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+                "Times New Roman", serif;
+  --font-sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                "Helvetica Neue", Arial, sans-serif;
+  --font-mono:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
 html { color-scheme: light; }
 
 body {
-  background: var(--color-canvas);
+  background: var(--color-paper);
   color: var(--color-ink);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.panel {
+/* ── Typography ─────────────────────────────────────────────────────────── */
+
+/* Titles carry authority, so they are set in the serif. */
+.title {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+  color: var(--color-ink);
+}
+
+/* Section headings on a document are small, spaced, and quiet — they label
+ * the content rather than competing with it. */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+.mono { font-family: var(--font-mono); font-variant-ligatures: none; }
+
+/* ── Structure ──────────────────────────────────────────────────────────── */
+
+/* A sheet, not a card: it sits ON the page rather than floating above it, so
+ * it takes a hairline and no shadow. */
+.sheet {
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: 14px;
+  border: 1px solid var(--color-rule);
 }
 
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+/* The rule under a section heading. */
+.rule       { border-bottom: 1px solid var(--color-rule); }
+.rule-soft  { border-bottom: 1px solid var(--color-rule-soft); }
+
+/* Rows in a document are separated by rules, never by gaps between cards. */
+.rows > * + * { border-top: 1px solid var(--color-rule-soft); }
 
 .focusable:focus-visible {
-  outline: 2px solid var(--color-brand-500);
+  outline: 2px solid var(--color-seal-500);
   outline-offset: 2px;
+  border-radius: 2px;
 }
 
-@keyframes shimmer { 0% { background-position: -420px 0 } 100% { background-position: 420px 0 } }
+/* ── Seal ───────────────────────────────────────────────────────────────── */
+
+/* Slow, single rotation on first paint: the stamp being pressed. Anything
+ * faster or looping would read as a spinner. */
+@keyframes seal-press {
+  from { transform: rotate(-8deg) scale(0.94); opacity: 0; }
+  to   { transform: rotate(0deg)   scale(1);    opacity: 1; }
+}
+.seal-press { animation: seal-press 520ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes rise {
+  from { transform: translateY(6px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.rise { animation: rise 380ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes shimmer {
+  0%   { background-position: -420px 0 }
+  100% { background-position:  420px 0 }
+}
 .shimmer {
-  background: linear-gradient(90deg, #eef1f6 25%, #e2e7f0 37%, #eef1f6 63%);
+  background: linear-gradient(90deg,
+    var(--color-paper-deep) 25%, #e8e4d8 37%, var(--color-paper-deep) 63%);
   background-size: 840px 100%;
-  animation: shimmer 1.3s linear infinite;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seal-press, .rise { animation: none; }
 }
 
 @media print {
   .no-print { display: none !important; }
+  body { background: #fff; }
 }

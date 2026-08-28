@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCredential, getWalletAddress } from "@/lib/session";
+import { toDegree } from "@/lib/school-api";
 import type { Student } from "@/types";
 
 /**
@@ -31,10 +32,10 @@ export function useStudent() {
       schoolId: credential.issuer.schoolId,
       // The wallet stands in for a name — EduProof has no reason to know one.
       name: wallet,
-      status: a.status as Student["status"],
-      gpa: a.gpa,
+      status: a.status.toLowerCase() as Student["status"],
+      gpaScaled: a.gpaScaled,
       academicYear: a.academicYear,
-      degree: a.degree as Student["degree"],
+      degree: toDegree(a.degree),
       major: a.major,
       enrolledAt: credential.issuedAt,
       expiresAt: credential.expiresAt,

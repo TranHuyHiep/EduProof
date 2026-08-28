@@ -9,6 +9,10 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    // lib/school/ is imported both by Next.js and by the standalone school
+    // server, which Node runs directly. Node's ESM resolver needs the explicit
+    // .ts extension; this lets TypeScript accept it too.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",

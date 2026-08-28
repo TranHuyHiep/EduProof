@@ -11,4 +11,7 @@ export const proofProvider: ProofProvider = new MockProofProvider();
 
 export * from "./types";
 export * from "./claims";
-export { listProofs } from "./store";
+export * from "./attributes";
+export * from "./presets";
+export { proofStore } from "./store";
+export type { ProofStore } from "./store";

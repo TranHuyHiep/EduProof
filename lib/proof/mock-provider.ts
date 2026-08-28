@@ -1,7 +1,7 @@
 import type { Proof, VerificationResult } from "@/types";
 import { getSchool } from "@/lib/data";
 import { evaluateClaim } from "./claims";
-import { readProof, saveProof } from "./store";
+import { proofStore } from "./store";
 import type { GenerateProofInput, ProofProvider } from "./types";
 
 const randomHex = (n: number): string =>
@@ -21,7 +21,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export class MockProofProvider implements ProofProvider {
   readonly name = "mock";
 
-  async generateProof({ student, claims }: GenerateProofInput): Promise<Proof> {
+  async generateProof({ student, claims, owner }: GenerateProofInput): Promise<Proof> {
     if (claims.length === 0) throw new Error("Select at least one claim to prove.");
 
     await delay(1400); // stands in for circuit execution
@@ -41,6 +41,7 @@ export class MockProofProvider implements ProofProvider {
       },
       // Opaque handle, deliberately NOT the student id.
       subject: `sub_${randomHex(16)}`,
+      owner,
       claims: results,
       // Every attribute the predicates read stays hidden.
       withheldAttributes: [...new Set(results.map((r) => r.attribute))],
@@ -49,14 +50,14 @@ export class MockProofProvider implements ProofProvider {
       payload: `mock_${randomHex(64)}`,
     };
 
-    saveProof(proof);
+    await proofStore.save(proof);
     return proof;
   }
 
   async verifyProof(proofId: string): Promise<VerificationResult> {
     await delay(900); // stands in for verifier-key check
 
-    const proof = readProof(proofId);
+    const proof = await proofStore.read(proofId);
     if (!proof) {
       return { valid: false, reason: "No proof matches this identifier." };
     }

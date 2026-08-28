@@ -1,81 +1,82 @@
-import type { ClaimRequest, ClaimResult, Student } from "@/types";
+// Turning predicates into sentences, and evaluating them.
+//
+// Nothing here is specific to one attribute: everything reads from the
+// registry in attributes.ts. That is what makes the claim set extensible —
+// and, more importantly, what lets Wave 2 use ONE generic circuit taking
+// (slot, operator, operand) instead of one circuit per claim type.
 
-/** The claim menu offered in the UI. Operands are chosen by the student. */
-export const CLAIM_CATALOG: Array<{
-  type: ClaimRequest["type"];
-  attribute: ClaimRequest["attribute"];
-  operator: ClaimRequest["operator"];
-  title: string;
-  defaultOperand: string | number;
-  options?: Array<string | number>;
-}> = [
-  {
-    type: "student_status",
-    attribute: "status",
-    operator: "==",
-    title: "I am currently an active student",
-    defaultOperand: "active",
-  },
-  {
-    type: "gpa_threshold",
-    attribute: "gpa",
-    operator: ">=",
-    title: "My GPA is at least",
-    defaultOperand: 3.5,
-    options: [2.5, 3.0, 3.5],
-  },
-  {
-    type: "academic_year_threshold",
-    attribute: "academicYear",
-    operator: ">=",
-    title: "I am at least in year",
-    defaultOperand: 3,
-    options: [1, 2, 3, 4],
-  },
-  {
-    type: "degree",
-    attribute: "degree",
-    operator: "==",
-    title: "My degree is",
-    defaultOperand: "Bachelor",
-    options: ["Bachelor", "Master", "PhD"],
-  },
-  {
-    type: "major",
-    attribute: "major",
-    operator: "==",
-    title: "My major is",
-    defaultOperand: "Computer Science",
-    options: [
-      "Computer Science",
-      "Mathematics",
-      "Data Science",
-      "Physics",
-      "Electrical Engineering",
-      "Business Administration",
-    ],
-  },
-];
+import type {
+  AttributeSpec,
+  ClaimOperator,
+  ClaimRequest,
+  ClaimResult,
+  Student,
+} from "@/types";
+import { attributeSpec, operatorPhrase, valueLabel } from "./attributes";
 
-/** `gpa >= 3.5` — the predicate as written, with no private value. */
+/** `gpa >= 3.5` — the predicate as written, carrying no private value. */
 export function statementOf(claim: ClaimRequest): string {
   return `${claim.attribute} ${claim.operator} ${claim.operand}`;
 }
 
-/** Verifier-facing wording. */
+/**
+ * First person, for the student choosing what to prove.
+ * "My GPA is at least 3.50"
+ */
+export function sentenceOf(claim: ClaimRequest): string {
+  const spec = attributeSpec(claim.attribute);
+  return `${spec.subject} ${operatorPhrase(claim.operator, spec.kind)} ${valueLabel(
+    spec,
+    claim.operand
+  )}`;
+}
+
+/**
+ * Third person, for the verifier reading the result.
+ * "GPA is at least 3.50"
+ */
 export function labelOf(claim: ClaimRequest): string {
-  switch (claim.type) {
-    case "student_status":
-      return `Currently an ${claim.operand} student`;
-    case "gpa_threshold":
-      return `GPA is at least ${Number(claim.operand).toFixed(1)}`;
-    case "academic_year_threshold":
-      return `In academic year ${claim.operand} or above`;
+  return sentenceOf(claim).replace(/^My /, "");
+}
+
+/** The integer both sides of the comparison are reduced to. */
+function scaled(spec: AttributeSpec, value: number): number {
+  return spec.scale ? Math.round(value * spec.scale) : value;
+}
+
+/** Reads the student's value for an attribute, already scaled. */
+function actualValue(student: Student, spec: AttributeSpec): string | number {
+  switch (spec.id) {
+    case "status":
+      return student.status;
+    case "gpa":
+      return student.gpaScaled; // already ×100
+    case "academicYear":
+      return student.academicYear;
     case "degree":
-      return `Holds a ${claim.operand} degree`;
+      return student.degree;
     case "major":
-      return `Major is ${claim.operand}`;
+      return student.major;
   }
+}
+
+function compare(
+  operator: ClaimOperator,
+  actual: string | number,
+  expected: string | number
+): boolean {
+  if (typeof actual === "number" && typeof expected === "number") {
+    switch (operator) {
+      case "==": return actual === expected;
+      case "!=": return actual !== expected;
+      case ">=": return actual >= expected;
+      case ">":  return actual > expected;
+      case "<=": return actual <= expected;
+      case "<":  return actual < expected;
+    }
+  }
+  // Enums compare by identity; ordering operators are not offered for them.
+  return operator === "!=" ? String(actual) !== String(expected) : String(actual) === String(expected);
 }
 
 /**
@@ -86,25 +87,61 @@ export function labelOf(claim: ClaimRequest): string {
  * zero-knowledge property. Only the boolean ever leaves this function.
  */
 export function evaluateClaim(student: Student, claim: ClaimRequest): ClaimResult {
-  let satisfied = false;
+  const spec = attributeSpec(claim.attribute);
+  const actual = actualValue(student, spec);
+  const expected =
+    spec.kind === "number" ? scaled(spec, Number(claim.operand)) : claim.operand;
 
-  switch (claim.type) {
-    case "student_status":
-      satisfied = student.status === claim.operand;
-      break;
-    case "gpa_threshold":
-      satisfied = student.gpa >= Number(claim.operand);
-      break;
-    case "academic_year_threshold":
-      satisfied = student.academicYear >= Number(claim.operand);
-      break;
-    case "degree":
-      satisfied = student.degree === claim.operand;
-      break;
-    case "major":
-      satisfied = student.major === claim.operand;
-      break;
+  return {
+    ...claim,
+    satisfied: compare(claim.operator, actual, expected),
+    statement: statementOf(claim),
+    label: labelOf(claim),
+  };
+}
+
+/** A claim row the builder can start from. */
+export function defaultClaim(attribute: ClaimRequest["attribute"]): ClaimRequest {
+  const spec = attributeSpec(attribute);
+  return {
+    attribute,
+    operator: spec.defaultOperator,
+    operand: spec.defaultValue,
+  };
+}
+
+/** Two rows are duplicates when they assert the same thing. */
+export function isDuplicate(a: ClaimRequest, b: ClaimRequest): boolean {
+  return a.attribute === b.attribute && a.operator === b.operator &&
+    String(a.operand) === String(b.operand);
+}
+
+/**
+ * Finds pairs that cannot both hold — `gpa >= 3.5` next to `gpa < 3.0`.
+ *
+ * Advisory only: the proof would simply come back unsatisfied. Catching it in
+ * the builder saves the student a pointless round trip.
+ */
+export function contradictions(claims: ClaimRequest[]): string[] {
+  const problems: string[] = [];
+
+  for (const spec of new Set(claims.map((c) => attributeSpec(c.attribute)))) {
+    if (spec.kind !== "number") continue;
+    const rows = claims.filter((c) => c.attribute === spec.id);
+
+    let lower = -Infinity;
+    let upper = Infinity;
+    for (const r of rows) {
+      const v = scaled(spec, Number(r.operand));
+      if (r.operator === ">=" ) lower = Math.max(lower, v);
+      if (r.operator === ">")   lower = Math.max(lower, v + 1);
+      if (r.operator === "<=")  upper = Math.min(upper, v);
+      if (r.operator === "<")   upper = Math.min(upper, v - 1);
+    }
+    if (lower > upper) {
+      problems.push(`${spec.subject} cannot satisfy all of these at once.`);
+    }
   }
 
-  return { ...claim, satisfied, statement: statementOf(claim), label: labelOf(claim) };
+  return problems;
 }
