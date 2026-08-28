@@ -1,0 +1,12 @@
+{
+  "schools": [
+    {
+      "id": "hanoi-university",
+      "name": "Hanoi University",
+      "shortName": "HU",
+      "country": "Vietnam",
+      "issuerKeyId": "hu-issuer-key-01",
+      "verified": true
+    }
+  ]
+}
