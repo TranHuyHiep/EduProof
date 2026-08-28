@@ -1,4 +1,12 @@
-# 04 — Hiện trạng repo (2026-08-28)
+# 04 — Hiện trạng repo (cập nhật 2026-08-29)
+
+> ⚠️ **File này viết cho server Linux `/root/eduproof`.** Từ 29/08 dự án làm trên
+> **máy Mac** `/Users/trinhbach/Workspace/working/eduproof/EduProof`.
+> Phần §1 và §3 bên dưới đã lỗi thời — trạng thái đúng nhất nằm ở
+> **`12-ui-review.md` §6–§7** và `00-README.md`.
+>
+> **Tóm tắt 29/08:** Phase 1 **đã xong**. `npm run build` + `npm test` (138 test)
+> + `npm run check:boundaries` đều pass. Việc tiếp theo: **Phase 2**.
 
 ## 1. Cây thư mục
 
@@ -67,26 +75,29 @@ Truy cập: `http://75.119.138.128:3000`
 
 | # | Vấn đề | Ảnh hưởng | Xử ở |
 |---|---|---|---|
-| N1 | `public/circuits/*.verifier` là rác từ session cũ | Gây hiểu nhầm là đã có ZK | Phase 1, xoá ngay |
-| N2 | `package.json` còn `@midnight-ntwrk/compact-runtime` nhưng không dùng | Bundle thừa | Phase 1, gỡ; Phase 2 thêm lại |
-| N3 | `store.ts` đồng bộ | Chặn đường lên Postgres/on-chain | Phase 1 |
-| N4 | `mock-school-api` là process riêng | Không deploy Vercel được | Phase 1, chuyển thành API route |
-| N5 | `CLAIM_CATALOG` cứng, operator cố định | Không đáp ứng yêu cầu claim động | Phase 1 |
-| N6 | Không có test nào | Mất 15% rubric | Phase 1 + Phase 2 |
+| ~~N1~~ | ~~`public/circuits/*.verifier` là rác~~ | — | ✅ **Xong** (khối A1) |
+| ~~N2~~ | ~~`@midnight-ntwrk/compact-runtime` thừa~~ | — | ✅ **Xong** (khối A1); Phase 2 thêm lại |
+| ~~N3~~ | ~~`store.ts` đồng bộ~~ | — | ✅ **Xong** — `lib/proof/store/` async, có test hợp đồng |
+| ~~N4~~ | ~~`mock-school-api` là process riêng~~ | — | ✅ **Xong** — hai vỏ, lõi chung `lib/school/` |
+| ~~N5~~ | ~~`CLAIM_CATALOG` cứng~~ | — | ✅ **Xong** — registry `lib/proof/attributes.ts` |
+| ~~N6~~ | ~~Không có test nào~~ | — | ✅ **Xong 29/08** — 138 test, xem `12-ui-review.md` §7 |
 | N7 | README chưa đạt chuẩn bài nộp | Ảnh hưởng Engineering 40% | Cuối Wave 1 |
-| N8 | `.env.local` hard-code IP `75.119.138.128` | Không portable | Phase 1 |
+| ~~N8~~ | ~~`.env.local` hard-code IP~~ | — | ✅ **Xong** — dùng đường dẫn tương đối |
 | N9 | Repo chưa gắn topic `midnightntwrk` | **Loại trực tiếp** | Trước khi nộp |
 
-## 5. Lỗi UI đã phát hiện qua Playwright (chưa sửa)
+## 5. Lỗi UI đã phát hiện qua Playwright — ✅ **ĐÃ SỬA HẾT** (29/08)
 
-| # | Lỗi |
-|---|---|
-| E1 | Trang credentials hiện **tên sinh viên** thay vì địa chỉ ví |
-| E2 | Ngày hiện dạng thô `2027-06-30T00:00:00.000Z`, nên là `30 June 2027` |
-| E3 | Bảng ở `/school` trên mobile bị cắt mất cột GPA/Status |
-| E4 | Claim chưa tick hiển thị câu bị cụt |
-| E5 | Trang verify thiếu nút "xác thực proof khác" |
-| E6 | Landing còn chữ "Student sign in", phải là "Connect wallet" |
+| # | Lỗi | Trạng thái |
+|---|---|---|
+| E1 | Trang credentials hiện tên sinh viên thay vì địa chỉ ví | ✅ |
+| E2 | Ngày hiện dạng thô ISO | ✅ `lib/format.ts`, có test |
+| E3 | Bảng `/school` mobile cắt cột | ✅ mobile chuyển sang danh sách thẻ |
+| E4 | Claim chưa tick hiển thị câu cụt | ✅ câu sinh từ registry, có test |
+| E5 | Trang verify thiếu nút "xác thực proof khác" | ✅ |
+| E6 | Landing còn "Student sign in" | ✅ |
+
+Thêm ba lỗi phát hiện ngày 29/08 (tràn ngang 375px, ô số nhảy về 0, input theo locale)
+— đã sửa, chi tiết ở `12-ui-review.md` §6.2.
 
 ## 6. Kết quả khảo sát Midnight (đã kiểm chứng thật, giữ cho Phase 2)
 

@@ -29,11 +29,36 @@ Wave 1 chỉ *kết nối* ví. Wave 2 **chứng minh quyền sở hữu**:
 - Predicate trên khoảng: `3.0 <= gpa <= 3.5`
 - Predicate theo thời gian: "tốt nghiệp trong 2 năm gần đây"
 
-### W2.4 Proof Request chuẩn hoá
-Nâng G1 (nếu đã làm ở Wave 1) thành giao thức đúng nghĩa:
-- Định dạng request có ký
-- Verifier đăng ký danh tính
-- Sinh viên thấy **ai** đang hỏi, và họ có được xác minh không
+### W2.4 Proof Request ⭐ (chuyển từ Wave 1 sang, 29/08/2026)
+
+Wave 1 **không** làm tính năng này — chủ dự án chuyển sang đây vì nó chỉ trọn vẹn
+khi request được ký và danh tính verifier được xác minh, cả hai đều thuộc Wave 2.
+
+Luồng: verifier nêu yêu cầu → sinh viên xem màn hình consent → chấp thuận hoặc từ chối.
+
+```
+Verifier ở /verify/request tạo yêu cầu:
+    "cần: status is active AND gpa >= 3.0"
+        → sinh link  /student/respond?req=<mã base64url>
+
+Sinh viên mở link:
+    → thấy CHÍNH XÁC điều được hỏi, và ai hỏi
+    → thấy trước mình sẽ để lộ gì (và không để lộ gì)
+    → Chấp thuận  hoặc  Từ chối
+    → nếu chấp thuận: sinh proof đúng yêu cầu, trả link về
+```
+
+Việc cần làm:
+- `types/index.ts`: `ProofRequest { requestId, requester, claims: ClaimRequest[], createdAt, expiresAt }`
+- `lib/proof/request.ts`: encode/decode base64url, có validate
+- `app/verify/request/page.tsx` — verifier dựng yêu cầu (dùng lại builder claim ở Phase 1 khối B)
+- `app/student/respond/page.tsx` — màn hình consent, hai cột **sẽ lộ gì / giữ riêng gì**
+- Luồng từ chối, và xử lý khi yêu cầu hết hạn
+
+Phần chỉ Wave 2 mới làm được — chính là lý do hoãn:
+- **Định dạng request có ký** — Wave 1 request trần, ai cũng giả được
+- **Verifier đăng ký danh tính** — sinh viên thấy **ai** đang hỏi, và có được xác minh không
+- Ràng buộc proof vào đúng verifier đã hỏi (xem W2.5)
 
 ### W2.5 Chống replay và ràng buộc ngữ cảnh
 - Nonce trong proof

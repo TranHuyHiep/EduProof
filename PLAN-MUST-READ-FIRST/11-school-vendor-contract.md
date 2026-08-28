@@ -436,7 +436,10 @@ clean  year 3
 (First Load JS vẫn 102 kB) — nó chỉ chạy phía server và ở server rời.
 
 ### 8.6 Còn nợ
-- Chưa có test tự động (khối H). Bốn script trên hiện nằm ở scratchpad,
-  **cần chuyển thành test thật** để tính vào 15% rubric QA.
+
+- ~~Chưa có test tự động~~ → **XONG (29/08).** Bốn script đã thành
+  `tests/school.test.ts` (20 test), chạy trong `npm test`. Tính vào 15% rubric QA.
+- ~~Khoá issuer chưa cố định (P2)~~ → **XONG (29/08).** `.env.local` có
+  `SCHOOL_SIGNING_KEY` cố định, public key khớp `data/schools.json`, có test canh giữ.
 - `@auth` mới là mô tả trong SDL, **chưa thi hành**. Đúng phạm vi Wave 1,
-  nhưng phải nói rõ trong README kẻo giám khảo hiểu nhầm.
+  nhưng phải nói rõ trong README kẻo giám khảo hiểu nhầm. **Còn nợ thật.**

@@ -43,28 +43,33 @@ Nếu file đã nằm trong commit → **là công việc có chủ đích, khô
 ### Trước khi commit
 
 ```bash
-npm run build   # phải pass — nhớ kill dev server trước
-npm test        # phải pass (sau khi có test ở Phase 1 khối H)
+npm test                  # 138 test, ~0.2s — chạy trước vì nhanh nhất
+npm run check:boundaries  # 4 luật ranh giới kiến trúc
+npm run build             # phải pass — nhớ kill dev server trước
 ```
 
 ## 4. Vận hành server
 
 ### Chạy dev
 ```bash
-cd /root/eduproof
+cd /Users/trinhbach/Workspace/working/eduproof/EduProof   # máy Mac hiện tại
 npm run dev                  # local
 npm run dev -- -H 0.0.0.0    # cho truy cập từ ngoài
 ```
 
+⚠️ Cần `.env.local` (xem `.env.example`). Thiếu `SCHOOL_SIGNING_KEY` thì trường sinh
+khoá tạm mỗi lần khởi động — app vẫn chạy nhưng chữ ký không khớp `data/schools.json`.
+
 ### Kill dev server — theo cổng, KHÔNG theo pattern tên
 ```bash
-kill $(ss -lptn 'sport = :3000' | grep -oP 'pid=\K[0-9]+')
+kill $(lsof -ti tcp:3000)                                  # macOS (máy hiện tại)
+kill $(ss -lptn 'sport = :3000' | grep -oP 'pid=\K[0-9]+')  # Linux
 ```
 ⚠️ **Không dùng `pkill -f "next dev"`** — pattern khớp cả process của chính agent (exit 144).
 
 ### Build
 ```bash
-kill $(ss -lptn 'sport = :3000' | grep -oP 'pid=\K[0-9]+')
+kill $(lsof -ti tcp:3000)   # macOS; Linux xem lệnh ss ở trên
 rm -rf .next
 npm run build
 ```

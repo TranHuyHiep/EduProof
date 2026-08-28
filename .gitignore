@@ -67,3 +67,6 @@ contracts/**/keys/
 # Không bao giờ commit khoá bí mật của trường hay ví sinh viên
 *.seed
 keys/private/
+
+# Playwright MCP scratch output (screenshots, snapshots)
+.playwright-mcp/

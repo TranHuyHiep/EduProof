@@ -23,13 +23,14 @@
 | **C** | Trang tra cứu của Verifier | 🔴 P0 | A |
 | **D** | Danh sách proof của Student | 🔴 P0 | A |
 | **E** | Nâng School API thành GraphQL thật (vendor độc lập) | 🔴 P0 | — |
-| **G1** | **Proof Request** — verifier nêu yêu cầu, sinh viên đồng ý | 🔴 P0 | B, C |
+| ~~**G1**~~ | ~~Proof Request~~ — **đã chuyển sang Wave 2** (29/08) | — | — |
 | **F** | Sửa lỗi UI + hoàn thiện UX | 🟠 P1 | B, C, D |
 | **G** | Tính năng bổ sung đã duyệt | 🟠 P1 | B |
 | **H** | Test | 🟠 P1 | B |
 | **I** | Chốt design system | 🟡 P2 | F |
 
 > **Đã chốt (28/08):** Q1 = có làm Proof Request (nâng lên P0).
+> **Đổi lại (29/08): Q1 = KHÔNG làm ở Wave 1** — chuyển sang Wave 2, xem khối G1.
 > Q2 = school là **vendor độc lập expose GraphQL**, xem `11-school-vendor-contract.md`.
 > Q3 = dùng proof server bên ngoài `https://proof-server.preprod.midnight.network`.
 
@@ -285,38 +286,20 @@ Kèm theo là các việc bù ranh giới (banner UI, comment, sơ đồ trong R
 
 ---
 
-## Khối G1 — Proof Request (đã duyệt) 🔴 P0
+## Khối G1 — Proof Request → **ĐÃ CHUYỂN SANG WAVE 2** (29/08/2026)
 
-Verifier nêu yêu cầu, sinh viên xem rồi quyết định — giống màn hình consent của OAuth.
+> **Quyết định của chủ dự án (29/08):** Proof Request — verifier gửi yêu cầu,
+> sinh viên chỉ việc chấp thuận — **chuyển sang Wave 2**. Không làm ở Wave 1.
+>
+> Lý do: đúng bản chất, tính năng này chỉ trọn vẹn khi **request được ký** và
+> **danh tính verifier được xác minh**. Cả hai đều là việc của Wave 2. Làm bản
+> chưa ký ở Wave 1 thì phải dán badge cảnh báo khắp nơi, mà vẫn chỉ là nửa vời.
+>
+> Đổi lại, thời gian dồn cho **Phase 2 (Compact contract — 40% điểm và là cửa tử)**
+> và cho **test (15% điểm)**.
+>
+> Nội dung thiết kế giữ nguyên ở `08-wave2-wave3.md` **W2.4**.
 
-```
-Verifier ở /verify/request tạo yêu cầu:
-    "cần: status is active AND gpa >= 3.0"
-        → sinh link  /student/respond?req=<mã base64url>
-
-Sinh viên mở link:
-    → thấy CHÍNH XÁC điều được hỏi, và ai hỏi
-    → thấy trước mình sẽ để lộ gì (và không để lộ gì)
-    → Đồng ý  hoặc  Từ chối
-    → nếu đồng ý: sinh proof đúng yêu cầu, trả link về
-```
-
-### Vì sao đáng P0
-- Là luồng **thật** ngoài đời — verifier mới là bên nêu yêu cầu, không phải sinh viên đoán
-- Thể hiện **selective disclosure** rõ hơn hẳn: sinh viên **thấy trước** rồi mới đồng ý
-- Không cần blockchain — mã request encode thẳng trong URL
-- Ăn điểm cả UX (15%) lẫn Product/Vision (15%)
-
-### Việc cần làm
-- [ ] `types/index.ts`: `ProofRequest { requestId, requester, claims: ClaimRequest[], createdAt, expiresAt }`
-- [ ] `lib/proof/request.ts`: encode/decode base64url, có validate
-- [ ] `app/verify/request/page.tsx` — verifier dựng yêu cầu (dùng lại UI builder claim ở khối B)
-- [ ] `app/student/respond/page.tsx` — màn hình consent
-- [ ] Màn hình consent phải hiện **cả hai cột**: sẽ tiết lộ gì / sẽ giấu gì (dùng lại G2)
-- [ ] Luồng từ chối: sinh viên nói không, có thông báo tử tế
-- [ ] Xử lý khi yêu cầu hết hạn
-- [ ] ⚠️ Wave 1: request **chưa được ký**, và danh tính verifier **chưa xác minh**.
-      Phải hiện badge cảnh báo rõ. Wave 2 làm thật (xem `08-wave2-wave3.md` W2.4)
 
 ---
 
@@ -342,7 +325,7 @@ Thêm:
 
 ## Khối G — Tính năng bổ sung
 
-> G1 đã được duyệt và tách thành khối riêng ở trên (P0).
+> G1 đã chuyển sang Wave 2 (29/08) — xem khối G1 ở trên.
 > Các mục dưới đây vẫn là đề xuất — **chờ duyệt trước khi code**.
 
 ### G2. Bảng "điều verifier KHÔNG thấy"
@@ -380,7 +363,7 @@ Cho phép xem cùng một proof dưới **góc nhìn verifier** ngay trong app s
 — thấy được chính xác điều mình sắp để lộ, trước khi chia sẻ.
 
 > **Khuyến nghị:** làm **G2, G5** ở Phase 1 (giá trị cao, chi phí thấp).
-> G2 còn được dùng lại làm màn hình consent của G1, nên gần như miễn phí.
+> G2 đứng độc lập; bản thân trang verify đã có khối "Withheld from this page".
 > G3, G4, G6 nếu còn thời gian.
 
 ---
@@ -420,8 +403,6 @@ Chủ dự án yêu cầu *"đơn giản, hài hoà"*. Chốt lại:
 - [ ] `SCHOOL-INTEGRATION.md` đủ để một trường khác tự cài đặt endpoint tương thích
 - [ ] Đủ **luồng sinh viên chủ động**: chọn trường → connect ví → nhận credential →
       dựng claim động → sinh proof → xem danh sách proof → verifier tra cứu → xác thực
-- [ ] Đủ **luồng verifier chủ động** (G1): verifier tạo yêu cầu → sinh viên xem consent →
-      đồng ý → proof trả về → xác thực
 - [ ] Không còn import `@midnight-ntwrk/*`
 - [ ] Không còn IP hard-code
 - [ ] Kiểm chứng riêng tư ở runtime vẫn pass

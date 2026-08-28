@@ -4,12 +4,29 @@
 > Bất kỳ agent/người nào tham gia code EduProof đều phải đọc hết thư mục này trước khi
 > chạm vào một dòng code.
 
-Cập nhật lần cuối: **2026-08-28**
-Trạng thái hiện tại: **Wave 1 — Phase 1 (Mock UI + backend logic off-chain), đang dở**
+Cập nhật lần cuối: **2026-08-29**
+Trạng thái hiện tại: **Wave 1 — Phase 1 ĐÃ XONG. Sẵn sàng vào Phase 2.**
 
-**Đã xong:** khối E (School GraphQL — xem file 11), khối A1 (dọn rác).
-**Đang làm:** kế hoạch ở **`12-ui-review.md`** — claim động, verifier tra cứu,
-student xem proof, và nâng chất UI/UX lên mức production-ready.
+**Đã xong:** khối E (School GraphQL — xem file 11), khối A1 (dọn rác),
+và **toàn bộ `12-ui-review.md`** — claim động, verifier tra cứu, student xem proof,
+UI/UX production-ready (§6), **138 test pass** (§7).
+
+**Quyết định 29/08:** Proof Request (G1) **chuyển sang Wave 2** — xem `08-wave2-wave3.md` W2.4.
+
+**Cổng kiểm tra hiện tại — cả ba đều pass:**
+```
+npm run build             13 route, không warning, First Load JS 102 kB
+npm test                  138 test / 6 file / ~0.2s
+npm run check:boundaries  4/4 luật kiến trúc
+```
+
+⚠️ **Việc tiếp theo là Phase 2** (`06-phase2-midnight.md`) — Compact contract.
+Đây là **40% điểm và là cửa tử**: không có contract compile được thì bị loại thẳng.
+
+⚠️ **Môi trường đã đổi:** giờ làm trên máy Mac
+(`/Users/trinhbach/Workspace/working/eduproof/EduProof`), không phải server Linux
+`/root/eduproof`. Các lệnh vận hành ở `09-conventions.md` §4 viết cho Linux — dùng
+`lsof -ti tcp:3000` thay cho `ss` khi cần kill theo cổng.
 
 ---
 
@@ -21,14 +38,14 @@ student xem proof, và nâng chất UI/UX lên mức production-ready.
 | `02-product.md` | EduProof là gì, 3 vai trò, mô hình riêng tư, business flow | Trước khi thiết kế tính năng |
 | `03-architecture.md` | Kiến trúc, ranh giới module, quy tắc bất di bất dịch | Trước khi viết code |
 | `04-current-state.md` | Repo hiện có gì, chạy thế nào, còn nợ gì | Khi bắt đầu một phiên làm việc mới |
-| `05-phase1-mock-ui.md` | **Kế hoạch chi tiết Phase 1** — việc đang làm | Ngay bây giờ |
-| `06-phase2-midnight.md` | Kế hoạch Phase 2 — Compact contract + preview network | Sau khi Phase 1 xong |
+| `05-phase1-mock-ui.md` | Kế hoạch chi tiết Phase 1 — **đã xong** | Tham khảo |
+| `06-phase2-midnight.md` | **Kế hoạch Phase 2 — Compact contract** | **Ngay bây giờ** |
 | `07-phase3-deployment.md` | Kế hoạch Phase 3 — Docker, env, hướng dẫn | Sau khi Phase 2 xong |
 | `08-wave2-wave3.md` | Định hướng Wave 2 và Wave 3 | Khi lập kế hoạch Wave sau |
 | `09-conventions.md` | Quy ước code, đặt tên, ngôn ngữ, quy trình làm việc | Trước mỗi PR |
 | `10-open-questions.md` | Câu hỏi còn treo, cần chủ dự án quyết | Khi bí |
 | `11-school-vendor-contract.md` | **School là vendor độc lập** — schema GraphQL như đặc tả tích hợp công khai | Trước khi động vào `mock-school-api/` |
-| `12-ui-review.md` | **Review UI/UX + kế hoạch hoàn thiện Phase 1** — việc đang làm | Ngay bây giờ |
+| `12-ui-review.md` | Review UI/UX + kết quả kiểm chứng và test — **đã xong** | Tham khảo |
 
 ---
 
@@ -49,8 +66,8 @@ student xem proof, và nâng chất UI/UX lên mức production-ready.
 
 ## Quyết định đã chốt (28/08/2026)
 
-- **Q1 → CÓ:** làm **Proof Request** ngay Phase 1 (verifier nêu yêu cầu → sinh viên
-  xem consent → đồng ý). Nâng lên P0, khối `G1`.
+- ~~**Q1 → CÓ:** làm Proof Request ngay Phase 1.~~
+  **🔄 Đổi lại 29/08: KHÔNG làm ở Wave 1** — chuyển sang Wave 2 (`08-wave2-wave3.md` W2.4).
 - **Q2 → School là VENDOR ĐỘC LẬP.** Không gộp vào Next.js. GraphQL schema trở thành
   **đặc tả tích hợp công khai** cho các trường khác. Xem `11-school-vendor-contract.md`.
 - **Q3 → Dùng proof server bên ngoài** (`https://proof-server.preprod.midnight.network`).
@@ -59,7 +76,9 @@ student xem proof, và nâng chất UI/UX lên mức production-ready.
   ghi chú "đang đóng vai hệ thống ngoài". Kèm theo: lõi `lib/school/` dùng chung cho
   hai vỏ, và các việc bù ranh giới ở `11-school-vendor-contract.md` §5.3.
 
-Còn treo: **Q12** (`lib/school/` viết bằng TS hay ESM thuần — chặn E2) + Q4–Q10.
+Q12 đã chốt (phương án C — TypeScript chạy qua `--experimental-strip-types`).
+Còn treo: **Q4–Q10** — trong đó **Q8 (repo public + topic `midnightntwrk`) là điều kiện
+loại trực tiếp**, cần xử lý trước khi nộp.
 
 ---
 

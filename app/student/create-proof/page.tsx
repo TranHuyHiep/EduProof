@@ -268,25 +268,39 @@ function NumberValue({
   value: number;
   onChange: (n: number) => void;
 }) {
-  const { min, max, step } = spec.range ?? { min: 0, max: 10, step: 1 };
+  const { min, max } = spec.range ?? { min: 0, max: 10 };
+
+  // The field keeps whatever was typed while it is being typed. Deriving it
+  // from `value` instead would rewrite "3." to 3 mid-keystroke, and an empty
+  // field would read back as 0 — silently turning the claim into "at least 0".
+  const [draft, setDraft] = useState<string | null>(null);
+
+  // `type="number"` renders through the OS locale, so a machine set to a
+  // comma decimal shows "3,5" for 3.5. A text field keeps one notation.
+  function commit(raw: string) {
+    setDraft(raw);
+    const n = Number(raw);
+    if (raw.trim() === "" || Number.isNaN(n)) return; // wait for a usable number
+    onChange(Math.min(max, Math.max(min, n)));
+  }
 
   return (
     <div className="flex min-w-[9rem] flex-1 items-center gap-2">
       <input
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
+        type="text"
+        inputMode="decimal"
+        value={draft ?? valueLabel(spec, value)}
+        aria-label={spec.subject}
+        onChange={(e) => commit(e.target.value)}
+        onBlur={() => setDraft(null)}
         className="focusable w-20 border border-rule bg-surface px-2.5 py-2 text-sm tabular-nums text-ink"
       />
       {spec.suggestions && (
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {spec.suggestions.map((s) => (
             <button
               key={s}
-              onClick={() => onChange(s)}
+              onClick={() => { setDraft(null); onChange(s); }}
               className={`focusable border px-2 py-1 text-xs tabular-nums transition-colors ${
                 Number(value) === s
                   ? "border-seal-500 bg-seal-50 text-seal-600"

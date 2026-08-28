@@ -20,6 +20,17 @@ sinh viên mở, thấy chính xác điều được hỏi, đồng ý hoặc t�
 **✅ Trả lời (28/08): CÓ LÀM.**
 → Nâng lên **P0**, thành khối riêng `G1` trong `05-phase1-mock-ui.md`.
 
+**🔄 ĐỔI LẠI (29/08): KHÔNG làm ở Wave 1 — chuyển sang Wave 2.**
+
+> "Proof Request là verifier gửi request và student chỉ approve đúng không,
+> cái này chuyển sang wave 2 nhé"
+
+Lý do: tính năng chỉ trọn vẹn khi **request được ký** và **danh tính verifier
+được xác minh** — cả hai đều là việc của Wave 2. Bản Wave 1 chưa ký sẽ phải dán
+badge cảnh báo khắp nơi mà vẫn nửa vời.
+→ Thiết kế chuyển nguyên sang `08-wave2-wave3.md` **W2.4**.
+→ Thời gian tiết kiệm dồn cho Phase 2 (40%, cửa tử) và test (15%).
+
 ---
 
 ## 🔴 Q2 — Bỏ hẳn `mock-school-api/server.mjs` hay giữ song song?
