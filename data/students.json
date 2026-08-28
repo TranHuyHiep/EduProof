@@ -1,0 +1,124 @@
+{
+  "students": [
+    {
+      "id": "SV001",
+      "schoolId": "hanoi-university",
+      "name": "Alice Nguyen",
+      "status": "active",
+      "gpa": 3.72,
+      "academicYear": 3,
+      "degree": "Bachelor",
+      "major": "Computer Science",
+      "enrolledAt": "2022-09-01",
+      "expiresAt": "2027-06-30"
+    },
+    {
+      "id": "SV002",
+      "schoolId": "hanoi-university",
+      "name": "Bob Tran",
+      "status": "active",
+      "gpa": 2.91,
+      "academicYear": 2,
+      "degree": "Bachelor",
+      "major": "Computer Science",
+      "enrolledAt": "2023-09-01",
+      "expiresAt": "2028-06-30"
+    },
+    {
+      "id": "SV003",
+      "schoolId": "hanoi-university",
+      "name": "Charlie Pham",
+      "status": "graduated",
+      "gpa": 3.45,
+      "academicYear": 4,
+      "degree": "Bachelor",
+      "major": "Mathematics",
+      "enrolledAt": "2020-09-01",
+      "expiresAt": "2026-06-30"
+    },
+    {
+      "id": "SV004",
+      "schoolId": "hanoi-university",
+      "name": "Diana Le",
+      "status": "active",
+      "gpa": 3.95,
+      "academicYear": 2,
+      "degree": "Master",
+      "major": "Data Science",
+      "enrolledAt": "2024-09-01",
+      "expiresAt": "2027-06-30"
+    },
+    {
+      "id": "SV005",
+      "schoolId": "hanoi-university",
+      "name": "Ethan Vo",
+      "status": "active",
+      "gpa": 3.10,
+      "academicYear": 3,
+      "degree": "Bachelor",
+      "major": "Electrical Engineering",
+      "enrolledAt": "2022-09-01",
+      "expiresAt": "2027-06-30"
+    },
+    {
+      "id": "SV006",
+      "schoolId": "hanoi-university",
+      "name": "Fiona Dang",
+      "status": "suspended",
+      "gpa": 2.40,
+      "academicYear": 2,
+      "degree": "Bachelor",
+      "major": "Business Administration",
+      "enrolledAt": "2023-09-01",
+      "expiresAt": "2028-06-30"
+    },
+    {
+      "id": "SV007",
+      "schoolId": "hanoi-university",
+      "name": "Giang Hoang",
+      "status": "active",
+      "gpa": 3.58,
+      "academicYear": 4,
+      "degree": "Bachelor",
+      "major": "Computer Science",
+      "enrolledAt": "2021-09-01",
+      "expiresAt": "2026-06-30"
+    },
+    {
+      "id": "SV008",
+      "schoolId": "hanoi-university",
+      "name": "Hana Bui",
+      "status": "active",
+      "gpa": 3.33,
+      "academicYear": 1,
+      "degree": "Master",
+      "major": "Computer Science",
+      "enrolledAt": "2025-09-01",
+      "expiresAt": "2028-06-30"
+    },
+    {
+      "id": "SV009",
+      "schoolId": "hanoi-university",
+      "name": "Ian Do",
+      "status": "graduated",
+      "gpa": 3.88,
+      "academicYear": 5,
+      "degree": "PhD",
+      "major": "Physics",
+      "enrolledAt": "2019-09-01",
+      "expiresAt": "2026-06-30"
+    },
+    {
+      "id": "SV010",
+      "schoolId": "hanoi-university",
+      "name": "Julia Ngo",
+      "status": "active",
+      "gpa": 2.75,
+      "academicYear": 2,
+      "degree": "Bachelor",
+      "major": "Mathematics",
+      "enrolledAt": "2023-09-01",
+      "expiresAt": "2028-06-30"
+    }
+  ]
+}
