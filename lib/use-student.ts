@@ -1,14 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getStudent } from "@/lib/data";
-import { getSessionStudentId } from "@/lib/session";
+import { getCredential, getWalletAddress } from "@/lib/session";
 import type { Student } from "@/types";
 
 /**
- * Resolves the signed-in student from the demo session.
- * Redirects to login when absent. `loading` covers the first client render,
- * since localStorage is unavailable during SSR.
+ * Reconstructs the Student view model from the device-local credential.
+ *
+ * The credential is the only source of attributes — nothing is read from a
+ * bundled JSON file, and nothing is fetched from the EduProof backend.
+ * Redirects to login when the device holds no credential.
  */
 export function useStudent() {
   const router = useRouter();
@@ -16,13 +17,28 @@ export function useStudent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const id = getSessionStudentId();
-    const found = id ? getStudent(id) : undefined;
-    if (!found) {
+    const credential = getCredential();
+    const wallet = getWalletAddress();
+
+    if (!credential || !wallet) {
       router.replace("/student/login");
       return;
     }
-    setStudent(found);
+
+    const { attributes: a } = credential;
+    setStudent({
+      id: credential.subject,
+      schoolId: credential.issuer.schoolId,
+      // The wallet stands in for a name — EduProof has no reason to know one.
+      name: wallet,
+      status: a.status as Student["status"],
+      gpa: a.gpa,
+      academicYear: a.academicYear,
+      degree: a.degree as Student["degree"],
+      major: a.major,
+      enrolledAt: credential.issuedAt,
+      expiresAt: credential.expiresAt,
+    });
     setLoading(false);
   }, [router]);
 

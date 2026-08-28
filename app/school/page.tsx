@@ -1,15 +1,36 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Panel, Badge, StatusBadge, EmptyState } from "@/components/ui";
-import { getSchools, searchStudents } from "@/lib/data";
+import { getSchools } from "@/lib/data";
+import { fetchRegistrar } from "@/lib/school-api";
+import type { Student } from "@/types";
 
 export default function SchoolPage() {
   const schools = getSchools();
   const [schoolId, setSchoolId] = useState(schools[0]?.id ?? "");
   const [query, setQuery] = useState("");
+  const [records, setRecords] = useState<Student[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const school = schools.find((s) => s.id === schoolId);
-  const rows = useMemo(() => searchStudents(query, schoolId), [query, schoolId]);
+
+  // Records come from the school's API — this app keeps no copy of them.
+  useEffect(() => {
+    fetchRegistrar(schoolId)
+      .then((r) => { setRecords(r); setError(null); })
+      .catch((e: Error) => setError(`Could not reach the school API — is it running on :4000? (${e.message})`));
+  }, [schoolId]);
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return records;
+    return records.filter(
+      (s) =>
+        s.id.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        s.major.toLowerCase().includes(q),
+    );
+  }, [query, records]);
 
   return (
     <div className="space-y-6">
@@ -55,11 +76,17 @@ export default function SchoolPage() {
           </span>
         </div>
 
-        {rows.length === 0 ? (
+        {error ? (
+          <EmptyState icon="⚠" title="School API unavailable" body={error} />
+        ) : rows.length === 0 ? (
           <EmptyState
             icon="⌕"
-            title="No matching students"
-            body={`Nothing matches “${query}”. Try a different name, ID or major.`}
+            title={query ? "No matching students" : "Loading records…"}
+            body={
+              query
+                ? `Nothing matches “${query}”. Try a different name, ID or major.`
+                : "Fetching from the school's own API."
+            }
           />
         ) : (
           <div className="overflow-x-auto">

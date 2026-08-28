@@ -1,0 +1,79 @@
+pragma language_version 0.26;
+
+import CompactStandardLibrary;
+
+// EduProof — proving academic claims without disclosing the record.
+//
+// The student's attributes enter each circuit as ordinary arguments. Compact
+// keeps circuit inputs private by default: they are witnesses to the proof,
+// not ledger state, so a verifier learns only the returned Boolean and the
+// public operands the student chose to compare against.
+//
+// What a verifier learns from `proveGpaThreshold(3.72, 35)`:
+//     "some GPA, at least 3.5"      ← the threshold is public
+// What it does not learn:
+//     3.72                           ← the witness stays on the student's device
+//
+// GPA is carried as tenths (3.5 → 35) because Compact has no floating point.
+
+/** Number of proofs this contract has verified. Public, and deliberately so. */
+export ledger proofsVerified: Counter;
+
+/** Issuers the contract trusts, keyed by the school's public-key hash. */
+export ledger trustedIssuers: Set<Bytes<32>>;
+
+/** Registers a school as a credential issuer. */
+export circuit registerIssuer(issuerKeyHash: Bytes<32>): [] {
+  trustedIssuers.insert(disclose(issuerKeyHash));
+}
+
+/**
+ * GPA clears a threshold.
+ *
+ * Both values are in tenths: a 3.5 threshold is passed as 35.
+ */
+export circuit proveGpaThreshold(gpaTenths: Uint<16>, thresholdTenths: Uint<16>): Boolean {
+  proofsVerified.increment(1);
+  return gpaTenths >= thresholdTenths;
+}
+
+/**
+ * Enrolment is currently active.
+ *
+ * Status is encoded as 0 = active, 1 = graduated, 2 = suspended.
+ */
+export circuit proveActiveStatus(statusCode: Uint<8>): Boolean {
+  proofsVerified.increment(1);
+  return statusCode == 0;
+}
+
+/** Academic year is at or above a public minimum. */
+export circuit proveAcademicYear(year: Uint<8>, minimumYear: Uint<8>): Boolean {
+  proofsVerified.increment(1);
+  return year >= minimumYear;
+}
+
+/**
+ * A hashed attribute matches a hashed expected value.
+ *
+ * Used for degree and major, where the interesting predicate is equality
+ * rather than ordering. Hashing on the client keeps the attribute out of the
+ * circuit's public operands.
+ */
+export circuit proveAttributeEquals(attributeHash: Bytes<32>, expectedHash: Bytes<32>): Boolean {
+  proofsVerified.increment(1);
+  return attributeHash == expectedHash;
+}
+
+/**
+ * The composite claim: active enrolment AND GPA above a threshold, proven
+ * together so a verifier cannot separate one outcome from the other.
+ */
+export circuit proveScholarshipEligibility(
+  gpaTenths: Uint<16>,
+  thresholdTenths: Uint<16>,
+  statusCode: Uint<8>
+): Boolean {
+  proofsVerified.increment(1);
+  return gpaTenths >= thresholdTenths && statusCode == 0;
+}

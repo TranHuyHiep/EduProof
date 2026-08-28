@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../",
+  "sources": ["src/hello.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAAA;;;;;;;;;;MAQA,AAAA,cAGC;;;;;cAH6B,OAAe;cAAE,WAAmB;;;;;;;;;;;;;;;;;;;;;;;;;yCAApC,OAAe,+BAAE,WAAmB;;;;;;;;;sDAApC,OAAe;sDAAE,WAAmB;;;;OAGjE;;;;GACA;EAZD;;;;;;;;;;;;;;;;;;;;;;;;;;IAIA;;;;;;;;;yEAAkC;;;;;;;GAQjC;EAJD,AAAA,uBAGC,4BAH6B,OAAe,EAAE,WAAmB;UAChE,KAAU;IAAV;;;;;;;;;;6FAAA,KAAU;;;;wEAAA;WACH,OAAK,IAAI,WAAS;GAC1B;;;;;;;;;;;;;;;;IAPD;qCAAA;;;;;;;;;;;0GAAkC;KAAA;;;;;;;;;;;;;;"
+}

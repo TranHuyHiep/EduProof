@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { Panel, Badge } from "@/components/ui";
-import { getSchools, getStudents } from "@/lib/data";
+import { getSchools } from "@/lib/data";
 
 export default function HomePage() {
   const schools = getSchools();
-  const studentCount = getStudents().length;
 
   return (
     <div className="space-y-12">
@@ -90,7 +89,7 @@ export default function HomePage() {
               <div>
                 <div className="text-sm font-medium text-slate-900">{s.name}</div>
                 <div className="mt-0.5 text-xs text-slate-500">
-                  {s.country} · {studentCount} student records
+                  {s.country} · records held by the school
                 </div>
               </div>
               {s.verified && <Badge tone="success">✓ Verified issuer</Badge>}

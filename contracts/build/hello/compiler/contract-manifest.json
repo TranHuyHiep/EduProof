@@ -1,0 +1,58 @@
+{
+  "manifest-version": "1",
+  "compiler-version": "0.34.0",
+  "language-version": "0.26.0",
+  "runtime-version": "0.19.0",
+  "compiler": {
+    "type": "directory",
+    "contract-info.json": {
+      "type": "file",
+      "size": 754,
+      "hash": "583a0e90186ebe2cb7476a5d6c528376ea8da737e1e67f2d13e093c68d738fd8"
+    }
+  },
+  "contract": {
+    "type": "directory",
+    "index.d.ts": {
+      "type": "file",
+      "size": 1572,
+      "hash": "7ce98bee169b2e427a2daa404ff34804d2bbe892b3e6de80f0f81f643001e937"
+    },
+    "index.js": {
+      "type": "file",
+      "size": 11594,
+      "hash": "c355bff3971322c5568ef25de18189d35cc10f0fd269a2c9829f5bfa56320d1b"
+    },
+    "index.js.map": {
+      "type": "file",
+      "size": 577,
+      "hash": "d029ff12598667f60187e01e82344ce2cc7ac7e0ea5cc70dbec183f7b24a84a5"
+    }
+  },
+  "zkir": {
+    "type": "directory",
+    "proveThreshold.bzkir": {
+      "type": "file",
+      "size": 80,
+      "hash": "c99f3eb061ec24d4027b392263f7e91f54d3744a19ebdd74325ef3632a2dbebf"
+    },
+    "proveThreshold.zkir": {
+      "type": "file",
+      "size": 1036,
+      "hash": "e0c95c5b7044f3ae0ddd79300d87fc44815b7f0db3d32045b5c21f105828b4b8"
+    }
+  },
+  "keys": {
+    "type": "directory",
+    "proveThreshold.prover": {
+      "type": "file",
+      "size": 146951,
+      "hash": "515c5b73f18a60f1e878c583da27b596b2313b02cabf2221249c93b49bd887d7"
+    },
+    "proveThreshold.verifier": {
+      "type": "file",
+      "size": 1351,
+      "hash": "e00145178299964d72d810f7352714213fe357477e092135865b07b2f49bf6ae"
+    }
+  }
+}

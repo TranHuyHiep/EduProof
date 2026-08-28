@@ -1,12 +1,14 @@
-// Single access point for JSON-backed data.
-// No React component should import the JSON files directly.
+// School reference data only.
+//
+// Student records deliberately do NOT live here. They belong to the school and
+// reach the student's browser directly from the school's API (lib/school-api).
+// If you find yourself adding a getStudent() to this file, the architecture
+// has sprung a leak.
 
 import schoolsJson from "@/data/schools.json";
-import studentsJson from "@/data/students.json";
-import type { School, Student } from "@/types";
+import type { School } from "@/types";
 
 const schools = schoolsJson.schools as School[];
-const students = studentsJson.students as Student[];
 
 export function getSchools(): School[] {
   return schools;
@@ -14,26 +16,4 @@ export function getSchools(): School[] {
 
 export function getSchool(schoolId: string): School | undefined {
   return schools.find((s) => s.id === schoolId);
-}
-
-export function getStudents(schoolId?: string): Student[] {
-  return schoolId ? students.filter((s) => s.schoolId === schoolId) : students;
-}
-
-export function getStudent(studentId: string): Student | undefined {
-  const id = studentId.trim().toUpperCase();
-  return students.find((s) => s.id.toUpperCase() === id);
-}
-
-/** Case-insensitive search across id, name and major. */
-export function searchStudents(query: string, schoolId?: string): Student[] {
-  const pool = getStudents(schoolId);
-  const q = query.trim().toLowerCase();
-  if (!q) return pool;
-  return pool.filter(
-    (s) =>
-      s.id.toLowerCase().includes(q) ||
-      s.name.toLowerCase().includes(q) ||
-      s.major.toLowerCase().includes(q),
-  );
 }
