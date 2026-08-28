@@ -3,7 +3,9 @@ import type { ProofProvider } from "./types";
 
 /**
  * The single place the app resolves a provider.
- * Swapping in Midnight later is a one-line change here.
+ *
+ * Phase 1 uses the mock provider — no blockchain, no cryptography.
+ * Phase 2 swaps this one line for a Midnight-backed implementation.
  */
 export const proofProvider: ProofProvider = new MockProofProvider();
 

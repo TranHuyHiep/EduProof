@@ -1,5 +1,69 @@
+# Dependencies
 node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/versions
+
+# Next.js
 .next/
+out/
+build/
+dist/
+
+# Production
 *.tsbuildinfo
 next-env.d.ts
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Testing
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Caches
+.eslintcache
+.turbo/
+.cache/
+.swc/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Deployment
+.vercel
+
+# --- Midnight / Compact (phases sau) ---
+# Artifact biên dịch: proving key rất nặng, sinh lại được bằng `compact compile`
+contracts/**/managed/
+contracts/**/keys/
+*.prover
+*.verifier
+*.zkir
+*.bzkir
+
+# Không bao giờ commit khoá bí mật của trường hay ví sinh viên
+*.seed
+keys/private/
