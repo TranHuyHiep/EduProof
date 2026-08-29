@@ -59,6 +59,10 @@ services:
 # Docker image for it. To run one locally instead — which is what a real
 # deployment should do, since a proof server sees the witness:
 #
-#   docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.0.3
+#   docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.1.0
+#
+# The tag must match the ledger the wallet links against — @midnight-ntwrk/ledger-v8
+# resolves to 8.1.0 here. A proof server on a different line produces dust spend
+# proofs the node rejects with Custom error 170 (InvalidDustSpendProof).
 #
 # then rebuild with NEXT_PUBLIC_PROOF_SERVER=http://localhost:6300.

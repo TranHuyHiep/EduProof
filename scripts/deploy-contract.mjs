@@ -293,10 +293,14 @@ async function main() {
           process.stdout.write(`\r  ${applied} / ${target}  (${pct}%)  dust ${balance}  ${mins}m   `);
         }
 
-        // Enough to pay is enough — no need to wait for a complete sync.
-        if (balance > 0n) {
+        // Seeing DUST is NOT enough. An earlier version resolved here on the
+        // first non-zero balance, and the node rejected the transaction with
+        // Custom error 170 (InvalidDustSpendProof): the dust spend proof was
+        // built against a half-synced view, so it did not match the chain.
+        // Wait for the sync to actually complete. See docs/lessons.md #6.
+        if (p?.isStrictlyComplete?.() === true && balance > 0n) {
           sub.unsubscribe();
-          console.log(`\r  synced enough — DUST ${balance}${" ".repeat(30)}`);
+          console.log(`\r  synced — DUST ${balance}${" ".repeat(40)}`);
           resolve();
         }
       });
@@ -306,10 +310,10 @@ async function main() {
         sub.unsubscribe();
         reject(
           new Error(
-            "the dust wallet did not sync far enough to see any DUST.\n" +
-              "  The chain has it — `registeredForDustGeneration` is true and the\n" +
-              "  generation estimate is non-zero — but this wallet syncs from\n" +
-              "  genesis and is still catching up. Leave it running and retry.",
+            "the dust wallet did not finish syncing.\n" +
+              "  It waits for a COMPLETE sync, not just the first DUST it sees:\n" +
+              "  a spend proof built on a partial view is rejected by the node\n" +
+              "  with Custom error 170. Raise DUST_SYNC_TIMEOUT_MS and retry.",
           ),
         );
       }, DUST_SYNC_TIMEOUT_MS);
@@ -417,9 +421,39 @@ async function main() {
   await walletProvider.stop();
 }
 
+/**
+ * Redacts anything that looks like key material.
+ *
+ * An error from deep in the wallet can carry configuration — and potentially
+ * the seed — in its properties. But printing only `message` once cost a
+ * two-hour run's diagnosis: the node rejected the transaction and the reason
+ * was in `cause`, which never reached the log. So print the detail, with long
+ * hex runs masked.
+ */
+function redact(text) {
+  return String(text).replace(/\b[0-9a-f]{32,}\b/gi, (m) => `<${m.length}-hex-redacted>`);
+}
+
 main().catch((error) => {
-  // Prints the message only: an error from deep in the wallet can carry
-  // configuration, and potentially key material, in its properties.
-  console.error(`\n✗ ${error?.message ?? error}`);
+  console.error(`\n✗ ${redact(error?.message ?? error)}`);
+
+  // The reason a node rejects a transaction arrives nested, not in `message`.
+  for (let cause = error?.cause, depth = 0; cause && depth < 5; cause = cause.cause, depth++) {
+    console.error(`  caused by: ${redact(cause.message ?? cause)}`);
+  }
+
+  // Substrate puts the dispatch error here rather than in the message.
+  for (const key of ["code", "data", "details", "errorData"]) {
+    if (error?.[key] !== undefined) {
+      console.error(`  ${key}: ${redact(JSON.stringify(error[key]))}`);
+    }
+  }
+
+  if (process.env.DEPLOY_DEBUG === "1" && error?.stack) {
+    console.error(`\n${redact(error.stack)}`);
+  } else {
+    console.error("\n  DEPLOY_DEBUG=1 for the stack trace.");
+  }
+
   process.exit(1);
 });

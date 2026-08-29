@@ -77,3 +77,6 @@ keys/private/
 
 # Playwright MCP scratch output (screenshots, snapshots)
 .playwright-mcp/
+
+# Dust wallet sync checkpoint — derived from your wallet, and large.
+.dust-checkpoint.json

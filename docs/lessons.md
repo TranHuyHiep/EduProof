@@ -161,3 +161,106 @@ giả mạo chữ ký cho **bất kỳ** khóa nào. Circuit phải ràng buộc
 `q·2^248 + rest == cFull` với `q < 116`, và
 [contracts/tests/reduction.test.ts](../contracts/tests/reduction.test.ts) nộp các
 split sai có chủ đích để chứng minh nó không lừa được.
+
+---
+
+## 6. Ví sync xong, DUST đủ, proof sinh được — node vẫn từ chối
+
+Triệu chứng, sau khoảng 130 phút sync:
+
+```
+synced enough — DUST 134752099999999999
+deploying — this generates a zero-knowledge proof and may take minutes …
+1010: Invalid Transaction: Custom error: 170
+✗ Transaction submission error
+```
+
+`1010: Invalid Transaction` là mã chuẩn Substrate. `Custom error: 170` là mã do
+runtime Midnight định nghĩa, và bảng mã chính thức
+([midnight-expert/plugins/midnight-status-codes](https://github.com/midnightntwrk/midnight-expert/tree/main/plugins/midnight-status-codes),
+đối chiếu `midnight-node/ledger/src/versions/common/types.rs`) dịch nó là:
+
+```
+170  InvalidDustSpendProof   "The dust spend proof is invalid."
+     fix: "Regenerate the dust spend proof using the proof server"
+```
+
+**Node từ chối proof của phần trả phí DUST, không phải proof của contract.**
+Circuit, witness và bản build ledger 8 đều đã chạy đúng tới tận bước submit —
+nên đừng đi sửa circuit.
+
+Các mã lân cận giúp loại trừ nhanh: 169 `InvalidDustRegistrationSignature`,
+171 `OutOfDustValidityWindow`, 173 `InsufficientDustForRegistrationFee`,
+174 `MalformedContractDeploy`, 179 `UnsupportedProofVersion`. Thiếu tiền là 173,
+sai ledger line là 179 — không phải 170.
+
+### Nguyên nhân đã loại trừ
+
+Nghi ngờ đầu tiên là lệch phiên bản proof-server ↔ ledger, vì có
+[thread forum trùng khớp](https://forum.midnight.network/t/custom-error-170-on-preprod-public-rpc-with-ledger-v8-8-0-3-but-8-1-0-deploys-fine-version-requirement-or-rpc-specific/1238)
+và đội Midnight xác nhận cơ chế đó. **Nhưng ở repo này thì không phải:**
+
+```
+proof-server chạy thực tế   midnightntwrk/proof-server:8.1.0  (local, cổng 6300)
+@midnight-ntwrk/ledger-v8   8.1.0
+```
+
+Hai bên đã khớp sẵn. Điểm dễ nhầm: `scripts/deploy-contract.mjs` đọc biến
+`PROOF_SERVER` (mặc định `http://localhost:6300`), **không** đọc
+`NEXT_PUBLIC_PROOF_SERVER` — biến đó chỉ dành cho trình duyệt. Nên việc
+`.env.local` thiếu `NEXT_PUBLIC_PROOF_SERVER` là vô can. Kiểm tra bằng
+`docker ps | grep 6300` trước khi đi theo hướng version.
+
+### Giả thuyết còn lại
+
+DUST spend proof sinh trên state đã cũ. Ví mất hơn hai tiếng để sync, nên tới
+lúc submit thì ảnh chụp DUST không còn khớp chain. Chưa xác minh được.
+
+### Vì sao việc này đắt
+
+Tiến trình chết là mất toàn bộ sync — testkit không lưu state giữa các lần chạy,
+`MidnightWalletProvider.build()` chỉ nhận `(logger, env, seed)`. Mỗi lần thử mù
+tốn hơn hai tiếng chỉ để quay lại đúng điểm cũ.
+
+Hai thứ giảm giá phải trả:
+
+- `scripts/dust-checkpoint.mjs` — `dust.serializeState()` ra
+  `.dust-checkpoint.json`. Chỉ lưu được **sau khi sync xong hoàn toàn**; SDK
+  không cho lấy state dở dang.
+- Dựng stack local bằng `LocalTestEnvironment` của testkit (cần `compose.yml`
+  ở thư mục làm việc, service `node_${TESTCONTAINERS_UID}`, `indexer_…`,
+  `proof-server_…`) — ví genesis có sẵn tiền, mỗi vòng thử tính bằng phút.
+  Lưu ý local **không tái hiện được lỗi 170**: node dev gần như không thu phí,
+  nên chỗ hỏng bị bỏ qua chứ không phải được chữa. Local xác minh code đúng,
+  không xác minh lỗi đã hết.
+
+### Đừng in mỗi `error.message`
+
+Handler cũ chỉ in `error.message` để tránh lộ seed, và lý do node từ chối nằm
+trong `cause` đã không bao giờ tới log — mất luôn phần chẩn đoán của một lần
+chạy hai tiếng. Bản hiện tại in cả `cause`, `code`, `data`, và mask mọi chuỗi
+hex từ 32 ký tự trở lên.
+
+---
+
+## Ma trận phiên bản ledger 8 — tra một lần, dùng mãi
+
+Nguồn: [ma trận chính thức](https://docs.midnight.network/relnotes/support-matrix)
+và `standalone.yml` của [midnight-local-dev](https://github.com/midnightntwrk/midnight-local-dev).
+
+| Thành phần | Ledger 8 | Chạm vào là sang ledger 9 |
+|---|---|---|
+| `midnightntwrk/midnight-node` | **1.0.0**, 1.0.1 | 2.0.0-rc.*, 2.1.0-beta.* |
+| `midnightntwrk/indexer-standalone` | **4.3.3** (preprod: `4.3.3-hotfix`) | 4.4.0-* |
+| `midnightntwrk/proof-server` | **8.1.0** | 9.0.0-rc.* |
+| Compact toolchain | **0.31.1** (language 0.23) | 0.34.0 |
+| `@midnight-ntwrk/compact-runtime` | **0.16.0** | 0.19.0 |
+
+`proof-server:latest` hiện trỏ 8.1.0, nhưng đó là quả bom hẹn giờ — luôn pin tag.
+
+Muốn dựng stack local: testkit `LocalTestEnvironment` cần `compose.yml` ở thư mục
+làm việc với service `node_${TESTCONTAINERS_UID}`, `indexer_…`, `proof-server_…`.
+Healthcheck của node phải chốt ở **block #1 tồn tại**, không phải chỉ cổng RPC trả
+lời — indexer resolve block #1 ngay khi khởi động và chết nếu node còn ở genesis.
+
+Lưu ý local **không tái hiện được lỗi 170**: node dev gần như không thu phí DUST.

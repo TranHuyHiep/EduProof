@@ -13,6 +13,7 @@
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "contract:build": "node scripts/build-contract.mjs",
     "contract:deploy": "node scripts/deploy-contract.mjs",
+    "contract:verify": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/verify-deployment.mjs",
     "wallet:register-dust": "node scripts/register-dust.mjs"
   },
   "dependencies": {
