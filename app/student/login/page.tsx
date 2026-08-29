@@ -1,96 +1,156 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Panel, Button } from "@/components/ui";
-import { getStudent } from "@/lib/data";
-import { setSessionStudentId } from "@/lib/session";
+import { Button, EmptyState, SchoolBoundaryNote, Skeleton, Steps } from "@/components/ui";
+import { IconAlert, IconArrowRight, IconWallet } from "@/components/icons";
+import { fetchCredential, fetchDemoRoster, type StudentSummary } from "@/lib/school-api";
+import { setCredential, setSessionSchoolId, setWalletAddress } from "@/lib/session";
+import { connectWallet } from "@/lib/wallet";
+import { shortenMiddle } from "@/lib/format";
 
-const DEMO_IDS = ["SV001", "SV002", "SV003"];
+type Stage = "connect" | "choose";
 
-export default function StudentLoginPage() {
+export default function ConnectPage() {
   const router = useRouter();
-  const [studentId, setStudentId] = useState("");
+
+  const [stage, setStage] = useState<Stage>("connect");
+  const [wallet, setWallet] = useState<{ address: string; isDemo: boolean } | null>(null);
+  const [students, setStudents] = useState<StudentSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  function submit() {
-    const id = studentId.trim();
-    if (!id) return setError("Enter your student ID.");
+  // The roster comes from the school's own system, in the browser — the
+  // EduProof server never sees it.
+  useEffect(() => {
+    if (stage !== "choose") return;
+    fetchDemoRoster()
+      .then(setStudents)
+      .catch((e: Error) => { setError(e.message); setStudents([]); });
+  }, [stage]);
 
+  async function connect() {
     setBusy(true);
     setError(null);
+    try {
+      const connection = await connectWallet();
+      setWallet(connection);
+      setWalletAddress(connection.address);
+      setStage("choose");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
-    setTimeout(() => {
-      const student = getStudent(id);
-      if (!student) {
-        setError(`No record found for “${id}”.`);
-        setBusy(false);
-        return;
-      }
-      setSessionStudentId(student.id);
-      router.push("/student/select-school");
-    }, 500);
+  async function claimIdentity(student: StudentSummary) {
+    setBusy(true);
+    setError(null);
+    try {
+      const credential = await fetchCredential(student.id);
+      setCredential(credential);
+      setSessionSchoolId(student.schoolId);
+      router.push("/student/credentials");
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="mx-auto max-w-md pt-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Student sign in</h1>
-        <p className="mt-1.5 text-sm text-slate-600">
-          Enter your student ID to access your credentials.
-        </p>
-      </div>
+    <div className="mx-auto max-w-xl space-y-8">
+      <Steps current={0} labels={["Connect", "Credential", "Statements", "Proof"]} />
 
-      <Panel className="mt-6 p-6">
-        <form
-          onSubmit={(e) => { e.preventDefault(); submit(); }}
-          className="space-y-4"
-        >
-          <div>
-            <label htmlFor="sid" className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Student ID
-            </label>
-            <input
-              id="sid"
-              value={studentId}
-              onChange={(e) => { setStudentId(e.target.value); setError(null); }}
-              placeholder="SV001"
-              autoComplete="off"
-              aria-invalid={!!error}
-              aria-describedby={error ? "sid-error" : undefined}
-              className={`focusable mono mt-1.5 w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm uppercase placeholder:normal-case placeholder:text-slate-400 ${
-                error ? "border-rose-300" : "border-line"
-              }`}
-            />
-            {error && (
-              <p id="sid-error" role="alert" className="mt-2 text-xs text-rose-600">{error}</p>
+      {stage === "connect" ? (
+        <>
+          <header>
+            <h1 className="title text-4xl">Connect your wallet</h1>
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
+              Your wallet is the identity EduProof knows you by. It never learns your
+              name, and the credential it unlocks stays on this device.
+            </p>
+          </header>
+
+          <div className="sheet p-8">
+            <Button onClick={connect} disabled={busy} className="inline-flex items-center gap-2">
+              <IconWallet size={1.05} />
+              {busy ? "Connecting…" : "Connect wallet"}
+            </Button>
+            <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+              Looks for a browser wallet and falls back to a demo key, so the flow
+              works without an extension installed. Proving that you own the wallet
+              is wave two&rsquo;s job.
+            </p>
+          </div>
+        </>
+      ) : (
+        <>
+          <header>
+            <h1 className="title text-4xl">Collect your credential</h1>
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
+              Connected as{" "}
+              <span className="mono text-[13px] text-ink">
+                {wallet ? shortenMiddle(wallet.address) : "…"}
+              </span>
+              {wallet?.isDemo && (
+                <span className="ml-2 text-[11px] uppercase tracking-wider text-caution">
+                  demo key
+                </span>
+              )}
+            </p>
+          </header>
+
+          <div className="sheet">
+            <div className="rule px-6 py-4">
+              <p className="eyebrow">Choose a record to collect</p>
+              <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+                A real institution authenticates the student instead of offering a
+                roster. This picker exists so the demo can be walked through.
+              </p>
+            </div>
+
+            {students === null ? (
+              <div className="rows">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12" />
+                ))}
+              </div>
+            ) : error ? (
+              <EmptyState
+                icon={<IconAlert />}
+                title="The institution's system did not answer"
+                body={error}
+              />
+            ) : (
+              <div className="rows">
+                {students.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => claimIdentity(s)}
+                    disabled={busy}
+                    className="focusable group flex w-full items-center justify-between px-6 py-3.5 text-left transition-colors hover:bg-paper-deep/60 disabled:opacity-50"
+                  >
+                    <span className="text-[15px] text-ink">{s.name}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="mono text-xs text-ink-faint">{s.id}</span>
+                      <IconArrowRight
+                        size={0.95}
+                        className="text-rule transition-colors group-hover:text-seal-600"
+                      />
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? "Checking…" : "Continue"}
-          </Button>
-        </form>
+          <SchoolBoundaryNote />
+        </>
+      )}
 
-        <div className="mt-5 border-t border-line pt-4">
-          <div className="text-xs font-medium text-slate-500">Demo accounts</div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {DEMO_IDS.map((id) => (
-              <button
-                key={id}
-                onClick={() => { setStudentId(id); setError(null); }}
-                className="focusable mono rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-700 transition hover:bg-slate-200"
-              >
-                {id}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Panel>
-
-      <p className="mt-4 text-center text-xs text-slate-500">
-        Demo sign-in only — no password, no real authentication.
-      </p>
+      {error && stage === "connect" && (
+        <p role="alert" className="text-sm text-failed">{error}</p>
+      )}
     </div>
   );
 }

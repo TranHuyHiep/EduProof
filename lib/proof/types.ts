@@ -3,6 +3,13 @@ import type { ClaimRequest, Proof, Student, VerificationResult } from "@/types";
 export interface GenerateProofInput {
   student: Student;
   claims: ClaimRequest[];
+  /**
+   * The wallet asking for the proof.
+   *
+   * Recorded so a student can list their own proofs. It is device-local and
+   * never shown to a verifier — see `Proof.owner`.
+   */
+  owner: string;
 }
 
 /**

@@ -1,29 +1,39 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Panel, Button, Steps, Skeleton } from "@/components/ui";
+import { Button, Skeleton, Steps } from "@/components/ui";
+import {
+  IconAlert, IconArrowLeft, IconCheck, IconLock, IconPlus, IconTrash, IconX,
+} from "@/components/icons";
 import { useStudent } from "@/lib/use-student";
-import { CLAIM_CATALOG, proofProvider, statementOf } from "@/lib/proof";
-import type { ClaimRequest, ClaimType } from "@/types";
-
-type Draft = { enabled: boolean; operand: string | number };
+import { getWalletAddress } from "@/lib/session";
+import {
+  ATTRIBUTES, attributeSpec, contradictions, defaultClaim, evaluateClaim,
+  isDuplicate, operatorPhrase, PRESETS, proofProvider, sentenceOf, valueLabel,
+} from "@/lib/proof";
+import type { ClaimOperator, ClaimRequest, PrivateAttribute } from "@/types";
 
 export default function CreateProofPage() {
   const router = useRouter();
   const { student, loading } = useStudent();
 
-  const [drafts, setDrafts] = useState<Record<ClaimType, Draft>>(() =>
-    Object.fromEntries(
-      CLAIM_CATALOG.map((c) => [
-        c.type,
-        { enabled: c.type === "student_status" || c.type === "gpa_threshold", operand: c.defaultOperand },
-      ]),
-    ) as Record<ClaimType, Draft>,
-  );
-
+  const [claims, setClaims] = useState<ClaimRequest[]>(() => PRESETS[1].claims);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Which claims would come back false — worth knowing before spending a proof.
+  const outcomes = useMemo(
+    () => (student ? claims.map((c) => evaluateClaim(student, c)) : []),
+    [student, claims],
+  );
+  const failing = outcomes.filter((o) => !o.satisfied);
+  const conflicts = useMemo(() => contradictions(claims), [claims]);
+
+  const withheld = useMemo(() => {
+    const used = new Set(claims.map((c) => c.attribute));
+    return ATTRIBUTES.filter((a) => used.has(a.id)).map((a) => a.withheldLabel);
+  }, [claims]);
 
   if (loading || !student) {
     return (
@@ -34,123 +44,307 @@ export default function CreateProofPage() {
     );
   }
 
-  const selected: ClaimRequest[] = CLAIM_CATALOG.filter((c) => drafts[c.type].enabled).map((c) => ({
-    type: c.type,
-    attribute: c.attribute,
-    operator: c.operator,
-    operand: drafts[c.type].operand,
-  }));
+  function update(index: number, patch: Partial<ClaimRequest>) {
+    setClaims((rows) =>
+      rows.map((row, i) => {
+        if (i !== index) return row;
+        const next = { ...row, ...patch };
+        // Switching attribute invalidates the operator and value beside it.
+        if (patch.attribute && patch.attribute !== row.attribute) {
+          return defaultClaim(patch.attribute);
+        }
+        return next;
+      }),
+    );
+  }
+
+  function addRow() {
+    const unused = ATTRIBUTES.find((a) => !claims.some((c) => c.attribute === a.id));
+    const candidate = defaultClaim((unused?.id ?? ATTRIBUTES[0].id) as PrivateAttribute);
+    if (claims.some((c) => isDuplicate(c, candidate))) return;
+    setClaims((rows) => [...rows, candidate]);
+  }
 
   async function generate() {
-    if (!student || selected.length === 0) return;
+    if (!student || claims.length === 0) return;
+    const owner = getWalletAddress();
+    if (!owner) { router.replace("/student/login"); return; }
+
     setGenerating(true);
     setError(null);
     try {
-      const proof = await proofProvider.generateProof({ student, claims: selected });
+      const proof = await proofProvider.generateProof({ student, claims, owner });
       router.push(`/student/proof/${proof.proofId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not generate the proof.");
+      setError((e as Error).message);
       setGenerating(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <Steps current={3} labels={["Sign in", "Institution", "Credentials", "Claims", "Proof"]} />
+    <div className="mx-auto max-w-3xl space-y-7">
+      <Steps current={2} labels={["Connect", "Credential", "Statements", "Proof"]} />
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Choose what to prove</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Each claim is a statement about your record. The verifier sees whether it holds — never the value.
+      <header>
+        <p className="eyebrow">Selective disclosure</p>
+        <h1 className="title mt-3 text-4xl">Build a statement</h1>
+        <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-ink-soft">
+          Each statement is made of three parts — subject, comparison, value. The
+          verifier learns whether it holds, never the value behind it.
         </p>
+      </header>
+
+      {/* Presets ------------------------------------------------------- */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="eyebrow">Start from</span>
+        {PRESETS.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setClaims(p.claims)}
+            title={p.context}
+            className="focusable border border-rule bg-surface px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-ink-faint hover:text-seal-600"
+          >
+            {p.name}
+          </button>
+        ))}
       </div>
 
-      <div className="space-y-3">
-        {CLAIM_CATALOG.map((c) => {
-          const d = drafts[c.type];
-          const set = (patch: Partial<Draft>) =>
-            setDrafts((prev) => ({ ...prev, [c.type]: { ...prev[c.type], ...patch } }));
+      {/* Builder ------------------------------------------------------- */}
+      <div className="sheet">
+        <div className="rows">
+          {claims.map((claim, i) => (
+            <ClaimRow
+              key={`${claim.attribute}-${i}`}
+              claim={claim}
+              satisfied={outcomes[i]?.satisfied ?? true}
+              onChange={(patch) => update(i, patch)}
+              onRemove={claims.length > 1 ? () => setClaims((r) => r.filter((_, j) => j !== i)) : undefined}
+            />
+          ))}
 
-          return (
-            <Panel key={c.type} className={`p-4 transition ${d.enabled ? "border-brand-300" : ""}`}>
-              <label className="flex cursor-pointer items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={d.enabled}
-                  onChange={(e) => set({ enabled: e.target.checked })}
-                  className="focusable h-4 w-4 accent-[#2557e5]"
-                />
-                <span className="text-sm font-medium text-slate-900">{c.title}</span>
-                {!c.options && <span className="text-sm text-slate-600">{c.defaultOperand}</span>}
-              </label>
+          <button
+            onClick={addRow}
+            disabled={claims.length >= ATTRIBUTES.length}
+            className="focusable flex w-full items-center justify-center gap-1.5 py-3.5 text-sm text-ink-faint transition-colors hover:text-seal-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <IconPlus size={0.95} />
+            Add a statement
+          </button>
+        </div>
 
-              {d.enabled && c.options && (
-                <div className="mt-3 flex flex-wrap gap-2 pl-7">
-                  {c.options.map((opt) => {
-                    const on = String(d.operand) === String(opt);
-                    return (
-                      <button
-                        key={String(opt)}
-                        onClick={() => set({ operand: opt })}
-                        className={`focusable rounded-lg px-3 py-1.5 text-sm transition ${
-                          on ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        }`}
-                      >
-                        {typeof opt === "number" && c.type === "gpa_threshold" ? opt.toFixed(1) : String(opt)}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+        {/* Preview ----------------------------------------------------- */}
+        <div className="border-t border-rule bg-paper-deep/50 p-5 sm:p-6">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <div className="eyebrow">The verifier will see</div>
+              <ul className="mt-2.5 space-y-1.5">
+                {claims.map((c, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[15px] text-ink">
+                    <span className={outcomes[i]?.satisfied ? "text-proven" : "text-caution"}>
+                      {outcomes[i]?.satisfied ? <IconCheck size={1.05} /> : <IconX size={1.05} />}
+                    </span>
+                    {sentenceOf(c).replace(/^My /, "")}
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-              {d.enabled && (
-                <div className="mono mt-3 pl-7 text-xs text-slate-500">
-                  {statementOf({ type: c.type, attribute: c.attribute, operator: c.operator, operand: d.operand })}
-                </div>
-              )}
-            </Panel>
-          );
-        })}
+            <div>
+              <div className="eyebrow">Stays private</div>
+              <ul className="mt-2.5 space-y-1.5">
+                {withheld.map((w) => (
+                  <li key={w} className="flex items-start gap-2 text-[15px] text-ink-faint">
+                    <IconLock size={1.05} className="mt-px" />
+                    {w}
+                  </li>
+                ))}
+                <li className="flex items-start gap-2 text-[15px] text-ink-faint">
+                  <IconLock size={1.05} className="mt-px" />
+                  Your name and student ID
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Panel className="bg-slate-50 p-5">
-        <div className="text-sm font-medium text-slate-900">
-          {selected.length === 0
-            ? "No claims selected"
-            : `${selected.length} claim${selected.length > 1 ? "s" : ""} will be proven`}
-        </div>
-        <p className="mt-1 text-sm text-slate-600">
-          {selected.length === 0
-            ? "Select at least one claim to continue."
-            : "Everything else in your record stays private, including the values these claims are checked against."}
-        </p>
-      </Panel>
-
-      {error && (
-        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </div>
+      {/* Warnings ------------------------------------------------------ */}
+      {conflicts.map((c) => (
+        <Notice key={c} tone="amber" text={c} />
+      ))}
+      {failing.length > 0 && conflicts.length === 0 && (
+        <Notice
+          tone="amber"
+          text={`${failing.length === 1 ? "One statement does" : `${failing.length} statements do`} not hold for your record. You can still generate the proof — the verifier will see them marked as not proven.`}
+        />
       )}
+      {error && <Notice tone="rose" text={error} />}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/student/credentials" className="focusable rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
-          ← Back
+      <div className="flex items-center justify-between">
+        <Link
+          href="/student/credentials"
+          className="focusable inline-flex items-center gap-1.5 text-sm text-ink-soft transition-colors hover:text-seal-600"
+        >
+          <IconArrowLeft size={1} />
+          Back
         </Link>
-        <Button onClick={generate} disabled={selected.length === 0 || generating}>
-          {generating ? "Generating proof…" : "Generate proof"}
+        <Button onClick={generate} disabled={generating || claims.length === 0}>
+          {generating ? "Generating…" : "Generate proof"}
         </Button>
       </div>
+    </div>
+  );
+}
 
-      {generating && (
-        <Panel className="p-5">
-          <div className="space-y-2 text-xs text-slate-500">
-            <div>Preparing private inputs…</div>
-            <div>Evaluating claims…</div>
-            <div>Producing proof…</div>
-          </div>
-          <Skeleton className="mt-3 h-2 w-full" />
-        </Panel>
+/* ---------------------------------------------------------------- row --- */
+
+function ClaimRow({
+  claim, satisfied, onChange, onRemove,
+}: {
+  claim: ClaimRequest;
+  satisfied: boolean;
+  onChange: (patch: Partial<ClaimRequest>) => void;
+  onRemove?: () => void;
+}) {
+  const spec = attributeSpec(claim.attribute);
+
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-2 p-3.5 transition-colors sm:flex-nowrap ${
+        satisfied ? "" : "bg-caution-bg"
+      }`}
+    >
+      <Select
+        value={claim.attribute}
+        onChange={(v) => onChange({ attribute: v as PrivateAttribute })}
+        className="min-w-[9.5rem] flex-1"
+      >
+        {ATTRIBUTES.map((a) => (
+          <option key={a.id} value={a.id}>{a.subject}</option>
+        ))}
+      </Select>
+
+      <Select
+        value={claim.operator}
+        onChange={(v) => onChange({ operator: v as ClaimOperator })}
+        className="min-w-[7.5rem]"
+      >
+        {spec.operators.map((op) => (
+          <option key={op} value={op}>{operatorPhrase(op, spec.kind)}</option>
+        ))}
+      </Select>
+
+      {spec.kind === "enum" ? (
+        <Select
+          value={String(claim.operand)}
+          onChange={(v) => onChange({ operand: v })}
+          className="min-w-[9rem] flex-1"
+        >
+          {spec.options?.map((o) => (
+            <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
+          ))}
+        </Select>
+      ) : (
+        <NumberValue spec={spec} value={Number(claim.operand)} onChange={(n) => onChange({ operand: n })} />
       )}
+
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          aria-label="Remove this statement"
+          className="focusable p-2 text-ink-faint transition-colors hover:text-failed"
+        >
+          <IconTrash size={1} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function NumberValue({
+  spec, value, onChange,
+}: {
+  spec: ReturnType<typeof attributeSpec>;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const { min, max } = spec.range ?? { min: 0, max: 10 };
+
+  // The field keeps whatever was typed while it is being typed. Deriving it
+  // from `value` instead would rewrite "3." to 3 mid-keystroke, and an empty
+  // field would read back as 0 — silently turning the claim into "at least 0".
+  const [draft, setDraft] = useState<string | null>(null);
+
+  // `type="number"` renders through the OS locale, so a machine set to a
+  // comma decimal shows "3,5" for 3.5. A text field keeps one notation.
+  function commit(raw: string) {
+    setDraft(raw);
+    const n = Number(raw);
+    if (raw.trim() === "" || Number.isNaN(n)) return; // wait for a usable number
+    onChange(Math.min(max, Math.max(min, n)));
+  }
+
+  return (
+    <div className="flex min-w-[9rem] flex-1 items-center gap-2">
+      <input
+        type="text"
+        inputMode="decimal"
+        value={draft ?? valueLabel(spec, value)}
+        aria-label={spec.subject}
+        onChange={(e) => commit(e.target.value)}
+        onBlur={() => setDraft(null)}
+        className="focusable w-20 border border-rule bg-surface px-2.5 py-2 text-sm tabular-nums text-ink"
+      />
+      {spec.suggestions && (
+        <div className="flex flex-wrap gap-1">
+          {spec.suggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => { setDraft(null); onChange(s); }}
+              className={`focusable border px-2 py-1 text-xs tabular-nums transition-colors ${
+                Number(value) === s
+                  ? "border-seal-500 bg-seal-50 text-seal-600"
+                  : "border-rule text-ink-faint hover:border-ink-faint"
+              }`}
+            >
+              {valueLabel(spec, s)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Select({
+  value, onChange, children, className = "",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`focusable border border-rule bg-surface px-2.5 py-2 text-sm text-ink ${className}`}
+    >
+      {children}
+    </select>
+  );
+}
+
+function Notice({ tone, text }: { tone: "amber" | "rose"; text: string }) {
+  const styles = {
+    amber: "border-caution/25 bg-caution-bg text-caution",
+    rose: "border-failed/25 bg-failed-bg text-failed",
+  }[tone];
+
+  return (
+    <div className={`flex items-start gap-2.5 border px-4 py-3 text-sm ${styles}`} role="alert">
+      <IconAlert size={1.1} className="mt-px shrink-0" />
+      <span>{text}</span>
     </div>
   );
 }

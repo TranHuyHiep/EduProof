@@ -2,22 +2,50 @@
   "name": "eduproof",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run",
+    "school": "node --env-file-if-exists=.env.local --experimental-strip-types mock-school-api/server.mjs",
+    "school:genkey": "node scripts/genkey.mjs",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "contract:build": "node scripts/build-contract.mjs",
+    "contract:deploy": "node scripts/deploy-contract.mjs",
+    "contract:register-issuer": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/register-issuer.mjs",
+    "contract:verify": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/verify-deployment.mjs",
+    "wallet:register-dust": "node scripts/register-dust.mjs"
   },
   "dependencies": {
+    "graphql": "^16.14.2",
     "next": "15.5.4",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
   "devDependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/midnight-js-contracts": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-network-id": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "^4.1.1",
+    "@midnight-ntwrk/testkit-js": "^4.1.1",
+    "@midnight-ntwrk/wallet-sdk": "^1.2.0",
+    "@scure/bip39": "^2.4.0",
+    "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4.1.13",
-    "@tailwindcss/postcss": "^4.1.13",
-    "typescript": "^5.6.3"
-  }
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.11"
+  },
+  "browserslist": [
+    "chrome >= 91",
+    "edge >= 91",
+    "firefox >= 90",
+    "safari >= 15"
+  ]
 }

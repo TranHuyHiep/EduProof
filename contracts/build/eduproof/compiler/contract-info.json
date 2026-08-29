@@ -1,0 +1,191 @@
+{
+  "compiler-version": "0.31.1",
+  "language-version": "0.23.0",
+  "runtime-version": "0.16.0",
+  "circuits": [
+    {
+      "name": "registerIssuer",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "schoolIdHash",
+          "type": {
+            "type-name": "Field"
+          }
+        },
+        {
+          "name": "issuerPk",
+          "type": {
+            "type-name": "Alias",
+            "name": "JubjubPoint",
+            "type": {
+              "type-name": "Opaque",
+              "tsType": "JubjubPoint"
+            }
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "subjectCommitment",
+      "pure": true,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "sk",
+          "type": {
+            "type-name": "Field"
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Field"
+      }
+    },
+    {
+      "name": "proveCredentialPredicate",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "schoolIdHash",
+          "type": {
+            "type-name": "Field"
+          }
+        },
+        {
+          "name": "subject",
+          "type": {
+            "type-name": "Field"
+          }
+        },
+        {
+          "name": "slot",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 255
+          }
+        },
+        {
+          "name": "op",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 255
+          }
+        },
+        {
+          "name": "operand",
+          "type": {
+            "type-name": "Field"
+          }
+        },
+        {
+          "name": "credential",
+          "type": {
+            "type-name": "Vector",
+            "length": 16,
+            "type": {
+              "type-name": "Field"
+            }
+          }
+        },
+        {
+          "name": "signature",
+          "type": {
+            "type-name": "Struct",
+            "name": "SchnorrSignature",
+            "elements": [
+              {
+                "name": "announcement",
+                "type": {
+                  "type-name": "Alias",
+                  "name": "JubjubPoint",
+                  "type": {
+                    "type-name": "Opaque",
+                    "tsType": "JubjubPoint"
+                  }
+                }
+              },
+              {
+                "name": "response",
+                "type": {
+                  "type-name": "Field"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Boolean"
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "getSchnorrReduction",
+      "arguments": [
+        {
+          "name": "challengeHash",
+          "type": {
+            "type-name": "Field"
+          }
+        }
+      ],
+      "result type": {
+        "type-name": "Tuple",
+        "types": [
+          {
+            "type-name": "Uint",
+            "maxval": 127
+          },
+          {
+            "type-name": "Uint",
+            "maxval": 452312848583266388373324160190187140051835877600158453279131187530910662655
+          }
+        ]
+      }
+    },
+    {
+      "name": "studentSecretKey",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Field"
+      }
+    }
+  ],
+  "contracts": [
+  ],
+  "ledger": [
+    {
+      "name": "issuers",
+      "index": 0,
+      "exported": true,
+      "storage": "Map",
+      "key": {
+        "type-name": "Field"
+      },
+      "value": {
+        "type-name": "Alias",
+        "name": "JubjubPoint",
+        "type": {
+          "type-name": "Opaque",
+          "tsType": "JubjubPoint"
+        }
+      }
+    },
+    {
+      "name": "proofsVerified",
+      "index": 1,
+      "exported": true,
+      "storage": "Counter"
+    }
+  ]
+}

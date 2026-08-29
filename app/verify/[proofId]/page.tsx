@@ -1,17 +1,26 @@
 "use client";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { Panel, Badge, Button, Skeleton, EmptyState } from "@/components/ui";
-import { proofProvider } from "@/lib/proof";
+import { ClaimLine, EmptyState, Entry, Skeleton, Tag } from "@/components/ui";
+import { Seal } from "@/components/seal";
+import { IconAlert, IconArrowRight, IconLock } from "@/components/icons";
+import { ATTRIBUTES, proofProvider } from "@/lib/proof";
+import { formatDate, formatDateTime } from "@/lib/format";
+import { NETWORK, explorerContractUrl, midnightConfig } from "@/lib/midnight/config";
 import type { VerificationResult } from "@/types";
 
+/** Attributes a proof deliberately does not carry, whichever claims it makes. */
+const ALWAYS_WITHHELD = ["Full name", "Student ID", "Complete transcript"];
+
 /**
- * Public verifier view. No login.
+ * The public verifier view. No account, no login.
  *
- * It renders ONLY: validity, issuer, and claim outcomes. It never reads a
- * private attribute value, because `Proof` does not carry one.
+ * It renders only validity, issuer and claim outcomes — it cannot leak an
+ * attribute value, because `Proof` has no field that could hold one.
  */
-export default function VerifyPage({ params }: { params: Promise<{ proofId: string }> }) {
+export default function VerifyProofPage({
+  params,
+}: { params: Promise<{ proofId: string }> }) {
   const { proofId } = use(params);
   const [result, setResult] = useState<VerificationResult | null>(null);
 
@@ -23,141 +32,178 @@ export default function VerifyPage({ params }: { params: Promise<{ proofId: stri
 
   if (!result) {
     return (
-      <div className="mx-auto max-w-2xl pt-6">
-        <Panel className="p-8">
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-3 w-2/3" />
-            <Skeleton className="h-3 w-1/2" />
-          </div>
-          <p className="mt-6 text-center text-sm text-slate-500">Verifying proof…</p>
-        </Panel>
+      <div className="mx-auto max-w-2xl space-y-6">
+        <Skeleton className="mx-auto h-32 w-32 rounded-full" />
+        <Skeleton className="h-48 w-full" />
       </div>
     );
   }
 
-  if (!result.valid || !result.proof) {
+  const { valid, proof, reason, onChain } = result;
+
+  if (!proof) {
     return (
-      <div className="mx-auto max-w-2xl pt-6">
-        <Panel className="border-rose-200">
+      <div className="mx-auto max-w-xl">
+        <div className="sheet">
           <EmptyState
-            icon="⚠️"
-            title="This proof could not be verified"
-            body={result.reason ?? "The proof identifier is not valid."}
+            icon={<IconAlert />}
+            title="No proof found"
+            body={reason ?? "Nothing on this device matches that identifier."}
             action={
-              <>
-                <Link href="/verify/demo"><Button variant="secondary">View sample proof</Button></Link>
-                <Link href="/student/login"><Button>Create a proof</Button></Link>
-              </>
+              <Link
+                href="/verify"
+                className="focusable inline-flex items-center gap-2 bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-seal-700"
+              >
+                Check another proof
+                <IconArrowRight size={1} />
+              </Link>
             }
           />
-          <div className="mono border-t border-line px-6 py-3 text-center text-xs text-slate-400">
-            {proofId}
-          </div>
-        </Panel>
+        </div>
+        <p className="mt-4 text-center text-xs leading-relaxed text-ink-faint">
+          Proofs are stored on the device that created them in this prototype.
+          Wave two records them on chain, so any link opens anywhere.
+        </p>
       </div>
     );
   }
 
-  const proof = result.proof;
-  const allSatisfied = proof.claims.every((c) => c.satisfied);
+  const withheldFromClaims = ATTRIBUTES.filter((a) =>
+    proof.withheldAttributes.includes(a.id),
+  ).map((a) => a.withheldLabel);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <header className="text-center">
-        <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">EduProof</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Credential verification</h1>
+    <div className="mx-auto max-w-2xl space-y-10">
+      {/* The seal, and the verdict beside it. */}
+      <header className="rise flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left">
+        <Seal proofId={proof.proofId} valid={valid} />
+        <div>
+          <p className="eyebrow">Certificate of attestation</p>
+          <h1 className={`title mt-2 text-4xl ${valid ? "text-ink" : "text-failed"}`}>
+            {valid ? "Proof verified" : "Not verified"}
+          </h1>
+          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-ink-soft">
+            {valid
+              ? `Attested by ${proof.issuer.schoolName} on ${formatDate(proof.createdAt)}.`
+              : (reason ?? "This proof could not be verified.")}
+          </p>
+        </div>
       </header>
 
-      <Panel className={`p-7 text-center ${allSatisfied ? "border-emerald-200" : "border-amber-200"}`}>
-        <div className={`mx-auto grid h-14 w-14 place-items-center rounded-full text-2xl ${
-          allSatisfied ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-          {allSatisfied ? "✓" : "!"}
+      {/* What was proven. */}
+      <section>
+        <div className="rule flex items-baseline justify-between pb-2">
+          <h2 className="eyebrow">Statements proven</h2>
+          <span className="text-[11px] tabular-nums text-ink-faint">
+            {proof.claims.filter((c) => c.satisfied).length} of {proof.claims.length}
+          </span>
         </div>
-        <div className={`mt-4 text-lg font-semibold ${allSatisfied ? "text-emerald-700" : "text-amber-700"}`}>
-          Proof valid
-        </div>
-        <p className="mt-1.5 text-sm text-slate-600">
-          {allSatisfied
-            ? "Every claim below was proven against a credential from a verified issuer."
-            : "This proof is authentic, but some claims below were not satisfied."}
-        </p>
-      </Panel>
-
-      <Panel className="p-6">
-        <h2 className="text-sm font-medium text-slate-900">Verified claims</h2>
-        <ul className="mt-4 space-y-2">
+        <div className="rows">
           {proof.claims.map((c) => (
-            <li
-              key={c.type}
-              className={`flex items-center justify-between gap-3 rounded-xl border p-4 ${
-                c.satisfied ? "border-emerald-200 bg-emerald-50/60" : "border-rose-200 bg-rose-50/60"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className={`text-lg ${c.satisfied ? "text-emerald-600" : "text-rose-600"}`}>
-                  {c.satisfied ? "✓" : "✗"}
-                </span>
-                <span className="text-sm text-slate-900">{c.label}</span>
-              </div>
-              <Badge tone={c.satisfied ? "success" : "danger"}>
-                {c.satisfied ? "proven" : "not satisfied"}
-              </Badge>
-            </li>
+            <ClaimLine key={c.statement} label={c.label} satisfied={c.satisfied} />
           ))}
-        </ul>
-      </Panel>
-
-      <Panel className="p-6">
-        <h2 className="text-sm font-medium text-slate-900">Issuer</h2>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm text-slate-900">{proof.issuer.schoolName}</div>
-            <div className="mono mt-0.5 text-xs text-slate-500">{proof.issuer.keyId}</div>
-          </div>
-          {proof.issuer.verified && <Badge tone="success">✓ Verified issuer</Badge>}
         </div>
-      </Panel>
+      </section>
 
-      <Panel className="border-slate-200 bg-slate-50/70 p-6">
-        <div className="flex items-center gap-2">
-          <span>🔒</span>
-          <h2 className="text-sm font-medium text-slate-900">Withheld from this page</h2>
-        </div>
-        <p className="mt-1 text-sm text-slate-600">
-          The student proved the claims above without disclosing:
+      {/* What was not disclosed — the point of the product. */}
+      <section>
+        <h2 className="eyebrow rule pb-2">Withheld from this page</h2>
+        <p className="pt-4 text-sm leading-relaxed text-ink-soft">
+          The statements above were proven without disclosing:
         </p>
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {["Exact GPA", "Student ID", "Full name", "Complete transcript", "Enrolment history", "Any unselected claim"].map((x) => (
-            <li key={x} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-slate-500 ring-1 ring-slate-200">
-              <span className="text-slate-400">🔒</span>
-              {x}
+        <ul className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
+          {[...withheldFromClaims, ...ALWAYS_WITHHELD].map((item) => (
+            <li key={item} className="flex items-baseline gap-2.5 text-[15px] text-ink-faint">
+              <IconLock size={0.9} className="translate-y-0.5" />
+              {item}
             </li>
           ))}
         </ul>
-      </Panel>
+      </section>
 
-      <Panel className="p-6">
-        <h2 className="text-sm font-medium text-slate-900">Proof details</h2>
-        <dl className="mt-3 space-y-2.5 text-xs">
-          {[
-            ["Proof ID", proof.proofId],
-            ["Subject", proof.subject],
-            ["Issued", new Date(proof.createdAt).toLocaleString()],
-            ["Credential valid until", proof.expiresAt],
-            ["Provider", proof.provider],
-          ].map(([k, v]) => (
-            <div key={k} className="flex items-start justify-between gap-4">
-              <dt className="text-slate-500">{k}</dt>
-              <dd className="mono break-all text-right text-slate-700">{v}</dd>
-            </div>
-          ))}
+      {/* Issuer. */}
+      <section>
+        <h2 className="eyebrow rule pb-2">Issuing institution</h2>
+        <div className="flex items-baseline justify-between gap-4 pt-4">
+          <div>
+            <div className="text-[15px] text-ink">{proof.issuer.schoolName}</div>
+            <div className="mono mt-1 text-xs text-ink-faint">{proof.issuer.keyId}</div>
+          </div>
+          {proof.issuer.verified && <Tag tone="proven">Verified issuer</Tag>}
+        </div>
+      </section>
+
+      {/* The register entry. */}
+      <section>
+        <h2 className="eyebrow rule pb-2">Register</h2>
+        <dl className="rows pt-1">
+          <Entry label="Proof reference" value={proof.proofId} mono />
+          <Entry label="Subject handle" value={proof.subject} mono />
+          <Entry label="Issued" value={formatDateTime(proof.createdAt)} />
+          <Entry label="Credential valid until" value={formatDate(proof.expiresAt)} />
+          <Entry label="Proving system" value={proof.provider} />
         </dl>
-      </Panel>
 
-      <p className="no-print pb-6 text-center text-xs text-slate-500">
-        The subject handle is opaque and cannot be traced back to a student ID.
-      </p>
+        {/*
+          What the chain itself says, read at verification time rather than
+          asserted. `issuerRegistered` is the one that carries weight: the
+          school's key is in the contract's registry, so the issuer does not
+          rest on this app's own school list.
+
+          When the chain cannot be reached the block says so. A proof is the
+          circuit's verdict and does not depend on an indexer being up, but a
+          verifier should be told which half they are looking at.
+        */}
+        {onChain && (
+          <div className="rule-soft mt-6 border-t pt-4">
+            {onChain.available ? (
+              <>
+                <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
+                  <Entry
+                    label="Issuer on chain"
+                    value={onChain.issuerRegistered ? "registered" : "not registered"}
+                  />
+                  <Entry
+                    label="Predicates verified by this contract"
+                    value={onChain.proofsVerified ?? "—"}
+                  />
+                </dl>
+                <p className="pt-3 text-xs leading-relaxed text-ink-faint">
+                  Read from the contract's public ledger on {NETWORK} —{" "}
+                  <a
+                    className="underline underline-offset-2 hover:text-ink"
+                    href={onChain.explorerUrl ?? explorerContractUrl() ?? undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    look it up on the block explorer
+                  </a>
+                  .
+                </p>
+              </>
+            ) : (
+              <p className="text-xs leading-relaxed text-ink-faint">
+                The on-chain registry could not be consulted
+                {onChain.reason ? ` — ${onChain.reason}` : "."} The claims above
+                are the circuit's verdict and do not depend on it.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      <footer className="rule-soft flex flex-wrap items-center justify-between gap-4 border-t pt-6">
+        <p className="max-w-sm text-xs leading-relaxed text-ink-faint">
+          The subject handle is opaque and cannot be traced back to a student.
+        </p>
+        <Link
+          href="/verify"
+          className="focusable inline-flex items-center gap-2 border border-rule px-4 py-2.5 text-sm text-ink transition-colors hover:border-ink-faint"
+        >
+          Check another proof
+          <IconArrowRight size={0.95} />
+        </Link>
+      </footer>
     </div>
   );
 }

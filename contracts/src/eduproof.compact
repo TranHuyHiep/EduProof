@@ -1,0 +1,178 @@
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+import "./schnorr" prefix schnorr_;
+
+// EduProof — one circuit that proves any predicate over a signed credential.
+//
+// The design that matters is what this file does NOT contain: a circuit per
+// claim. An earlier version had six (proveGpaThreshold, proveActiveStatus, …),
+// which meant every new attribute needed a new circuit, a recompile and a
+// redeploy. The claim builder in the app is dynamic, so the circuit has to be
+// too: the predicate itself is an argument.
+//
+// What a verifier learns from a proof with (slot=3, op=GTE, operand=350):
+//     "the GPA slot of a credential signed by this school is at least 3.50"
+// What it does not learn:
+//     3.72 — the credential is a witness, and stays on the student's device.
+//
+// Three things are checked, and all three must hold:
+//
+//   1. Issuer authenticity — the school's Schnorr signature over the whole
+//      credential vector verifies against the issuer key held on the ledger.
+//   2. Ownership          — the caller knows the secret behind the subject
+//      commitment, so a leaked credential cannot be replayed by a stranger.
+//   3. The predicate      — evaluated on the requested slot.
+//
+// Only the Boolean leaves the circuit.
+
+/**
+ * Slots of the canonical credential vector.
+ *
+ * These numbers are shared with lib/school/canonical.ts and the attribute
+ * registry in lib/proof/attributes.ts. They are part of the proving contract,
+ * not a display detail: renumbering one would silently invalidate every
+ * credential a school has already signed.
+ *
+ *   0 schoolId hash   1 subject commitment   2 status      3 gpa (x100)
+ *   4 academicYear    5 degree               6 major       7 expiresAt (epoch days)
+ *
+ * Sixteen slots leaves room for new attributes without changing the circuit.
+ */
+
+/** Comparison codes. Shared with lib/proof/circuit-encoding.ts. */
+export enum Operator {
+  EQ,   // ==
+  NEQ,  // !=
+  GTE,  // >=
+  GT,   // >
+  LTE,  // <=
+  LT    // <
+}
+
+/**
+ * Schools trusted to issue credentials, keyed by school-id hash.
+ *
+ * Public on purpose: a verifier must be able to see which issuer stands behind
+ * a proof, and anyone must be able to audit the list. Wave 1 read this from a
+ * JSON file shipped with the app — on chain, it is no longer the app's word
+ * for it.
+ */
+export ledger issuers: Map<Field, JubjubPoint>;
+
+/** How many predicates this contract has verified. Public, and deliberately so. */
+export ledger proofsVerified: Counter;
+
+/**
+ * The student's private state, held by the wallet and never sent anywhere.
+ *
+ * This is the half of the dual-ledger model that does not live on chain. The
+ * witness is how the circuit reaches it: the runtime calls back into the
+ * student's own private-state provider, so the secret is supplied locally at
+ * proving time rather than passed in by whatever code builds the transaction.
+ */
+witness studentSecretKey(): Field;
+
+/**
+ * A school publishes its issuer key.
+ *
+ * Deliberately open in Wave 1 so a demo can register a school without an
+ * out-of-band step. Wave 2 gates this on a signature from the school itself —
+ * see docs/40-wave-2-features.md.
+ */
+export circuit registerIssuer(schoolIdHash: Field, issuerPk: JubjubPoint): [] {
+  issuers.insert(disclose(schoolIdHash), disclose(issuerPk));
+}
+
+/**
+ * Reads one slot of the credential vector.
+ *
+ * A circuit has no random access: `v[idx]` needs `idx` known at compile time.
+ * So every slot is visited and the matching one is summed in, the others
+ * contributing zero. Constant work by construction, which is also what stops
+ * the chosen slot leaking through the shape of the proof.
+ */
+circuit selectSlot(v: Vector<16, Field>, slot: Uint<8>): Field {
+  const terms = map(
+    (i: Uint<8>) => (i == slot) ? v[i] : 0 as Field,
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as Vector<16, Uint<8>>
+  );
+  return fold((a: Field, b: Field) => a + b, 0 as Field, terms);
+}
+
+/**
+ * Applies a comparison.
+ *
+ * Ordering needs a bounded integer, so both sides are narrowed to 64 bits.
+ * Every slot in the canonical vector fits: hashes are 32-bit, GPA is at most
+ * 400, dates are epoch days. Equality is done on the Field itself, which is
+ * exact — and it is the only comparison that means anything for the hashed
+ * slots, where ordering would compare hashes rather than values.
+ */
+circuit compare(actual: Field, op: Uint<8>, operand: Field): Boolean {
+  const a = actual as Uint<64>;
+  const b = operand as Uint<64>;
+
+  return (op == Operator.EQ  as Uint<8>) ? (actual == operand)
+       : (op == Operator.NEQ as Uint<8>) ? (!(actual == operand))
+       : (op == Operator.GTE as Uint<8>) ? (a >= b)
+       : (op == Operator.GT  as Uint<8>) ? (a > b)
+       : (op == Operator.LTE as Uint<8>) ? (a <= b)
+       : (op == Operator.LT  as Uint<8>) ? (a < b)
+       : false;
+}
+
+/**
+ * Derives the public subject commitment from the student's secret.
+ *
+ * Exposed so the wallet and the school can compute the same value off circuit
+ * without reimplementing the hash — the school needs it to fill slot 1 before
+ * signing.
+ */
+export circuit subjectCommitment(sk: Field): Field {
+  return transientHash<Field>(sk);
+}
+
+/**
+ * The circuit the whole product rests on.
+ *
+ * The public arguments are the statement being made; the witness is the
+ * evidence for it. `credential` and `signature` are ordinary circuit
+ * arguments, which Compact keeps private — they are inputs to the proof, never
+ * ledger state. The student's secret key does not even come in that way: it is
+ * pulled from private state by the witness above.
+ */
+export circuit proveCredentialPredicate(
+  // ── the statement, visible to the verifier ──
+  schoolIdHash: Field,   // which issuer, looked up on the ledger
+  subject:      Field,   // commitment to the holder, unlinkable to the student id
+  slot:         Uint<8>, // which attribute
+  op:           Uint<8>, // which comparison
+  operand:      Field,   // compared against
+
+  // ── the evidence, never disclosed ──
+  credential:   Vector<16, Field>,
+  signature:    schnorr_SchnorrSignature
+): Boolean {
+  // 1. The issuer is one the ledger knows, and it signed this exact vector.
+  assert(issuers.member(disclose(schoolIdHash)), "unknown issuer");
+  const issuerPk = issuers.lookup(disclose(schoolIdHash));
+  schnorr_schnorrVerify<16>(credential, signature, issuerPk);
+
+  // 2. The caller holds the secret behind the subject commitment. Without this
+  //    a stolen credential would prove just as well as an owned one.
+  assert(subjectCommitment(studentSecretKey()) == subject, "not the credential holder");
+
+  // 3. The credential is bound to the subject it claims: slot 1 carries the
+  //    commitment the school signed, so one student's credential cannot be
+  //    presented under another student's subject.
+  assert(selectSlot(credential, 1) == subject, "subject mismatch");
+
+  // 4. The credential names the issuer being checked, so a signature from one
+  //    school cannot be replayed against another school's registry entry.
+  assert(selectSlot(credential, 0) == schoolIdHash, "issuer mismatch");
+
+  proofsVerified.increment(1);
+
+  return compare(selectSlot(credential, slot), op, operand);
+}

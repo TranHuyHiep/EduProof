@@ -1,5 +1,82 @@
+# Dependencies
 node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/versions
+
+# Next.js
 .next/
+out/
+build/
+dist/
+
+# Exception: the compiled contract. See the Midnight section below for why.
+# A negation cannot re-include a file whose PARENT directory is excluded, so
+# the directory is un-ignored first, then its contents.
+!contracts/build/
+!contracts/build/**
+
+
+# Production
 *.tsbuildinfo
 next-env.d.ts
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Testing
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Caches
+.eslintcache
+.turbo/
+.cache/
+.swc/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Deployment
+.vercel
+
+# --- Midnight / Compact ---
+# Artifact biên dịch **ĐƯỢC COMMIT** (đổi lại quyết định cũ, 29/08).
+#
+# Lý do cũ: "proving key rất nặng". Thực tế circuit này chỉ 788K tổng cộng —
+# không đáng kể với git. Còn cái giá của việc KHÔNG commit thì lớn: deploy sẽ
+# cần cài Compact toolchain, và compile lúc build sẽ đụng giới hạn của Vercel.
+# Xem PLAN-MUST-READ-FIRST/06-phase2-midnight.md §5.3.
+contracts/**/managed/
+
+# Không bao giờ commit khoá bí mật của trường hay ví sinh viên
+*.seed
+keys/private/
+
+# Playwright MCP scratch output (screenshots, snapshots)
+.playwright-mcp/
+
+# Dust wallet sync checkpoint — derived from your wallet, and large.
+.dust-checkpoint.json
