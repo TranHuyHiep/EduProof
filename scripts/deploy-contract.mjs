@@ -67,7 +67,9 @@ async function toHexSeed(raw) {
   }
 
   if (words.length !== 12 && words.length !== 24) {
-    fail(`MIDNIGHT_WALLET_SEED must be 12 or 24 words, or 64 hex characters. Found ${words.length}.`);
+    fail(
+      `MIDNIGHT_WALLET_SEED must be 12 or 24 words, or 64/128 hex characters. Found ${words.length}.`,
+    );
   }
 
   // The FULL 64-byte BIP39 seed, not the first 32 bytes.
