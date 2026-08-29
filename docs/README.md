@@ -50,6 +50,7 @@ thêm file mới không phải đánh số lại cả thư mục.
 |---|---|---|
 | 40 | [40-wave-2-features.md](40-wave-2-features.md) | Wave 2 sẽ làm gì |
 | 41 | [41-wave-3-features.md](41-wave-3-features.md) | Wave 3 sẽ làm gì |
+| 42 | [42-references.md](42-references.md) | Link tài liệu Midnight, đã kiểm chứng còn sống |
 
 Mỗi Wave có file **features**. Riêng Wave 1 có thêm **plan** và **go-live**, vì
 nó là Wave đang làm — kế hoạch Wave sau chỉ viết khi tới lượt.

@@ -66,28 +66,32 @@ là bình thường ngay sau deploy.
 
 ## Bước 2 — Đăng ký khoá trường lên chain ⚠️
 
-**Đây là mắt xích còn thiếu, không được bỏ qua.**
+**Không được bỏ qua.** Contract deploy xong có `issuers` **rỗng**, và hệ quả
+không dừng ở hiển thị:
 
-Contract deploy xong có `issuers` **rỗng**. Hiện `registerIssuer` chỉ chạy
-trong bộ nhớ mỗi phiên (`lib/midnight/prover.ts:89`), chưa bao giờ lên chain.
-Hệ quả nếu bỏ qua bước này:
-
-- `issuerRegistered` trên trang verify luôn hiện *not registered*
-- Mệnh đề *"khoá trường nằm trong registry on-chain"* thành sai
-
-Cần một script gọi circuit `registerIssuer(schoolIdHash, issuerPk)` qua
-transaction thật. Khoá lấy từ `circuitPublicKey()` trong
-[lib/school/keys.ts](../lib/school/keys.ts) — **cùng khoá** trường dùng để ký,
-nếu không circuit sẽ từ chối chữ ký.
+- `proveCredentialPredicate` từ chối mọi proof với *"unknown issuer"*
+- Trang verify luôn hiện *Issuer on chain: not registered*
 
 ```bash
-npm run contract:register-issuer      # cần viết
+npm run contract:register-issuer
 ```
 
-Việc này tốn DUST và ghi lên chain, nên hỏi xác nhận như deploy.
+Script gọi circuit `registerIssuer` qua transaction thật, hỏi xác nhận trước
+(gõ `register`), và in link explorer của giao dịch.
 
-**Kiểm chứng:** `npm run contract:verify` báo `issuerCount ≥ 1`, và trang
-verify hiện *Issuer on chain: registered*.
+Khoá lấy từ `circuitPublicKey()` — **cùng khoá** trường dùng để ký, không
+truyền tay. Script dừng ngay nếu `SCHOOL_SIGNING_KEY` chưa có trong
+`.env.local`: thiếu nó thì một khoá tạm sẽ được sinh ra và ghi lên chain, nơi
+không lấy lại được, và mọi proof sau đó đều hỏng vì contract giữ một khoá
+không ký gì cả.
+
+**Kiểm chứng:**
+
+```bash
+npm run contract:verify      # issuerCount ≥ 1
+```
+
+Trang verify phải hiện *Issuer on chain: **registered***.
 
 ---
 
