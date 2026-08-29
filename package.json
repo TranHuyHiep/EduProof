@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "school": "node --experimental-strip-types mock-school-api/server.mjs",
+    "school": "node --env-file-if-exists=.env.local --experimental-strip-types mock-school-api/server.mjs",
     "school:genkey": "node scripts/genkey.mjs",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "contract:build": "node scripts/build-contract.mjs",
