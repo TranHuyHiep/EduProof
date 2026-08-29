@@ -158,6 +158,15 @@ export interface OnChainState {
   proofsVerified?: string;
   /** Where a human can check this themselves. */
   explorerUrl?: string;
+  /**
+   * The explorer page for the latest transaction to touch the contract.
+   *
+   * Safe to expose because it is a property of the contract, not of this
+   * proof: every verifier loading any proof sees the same hash. Nothing here
+   * may ever become per-proof — that would make two proofs by one student
+   * linkable, which `tests/on-chain-state.test.ts` exists to prevent.
+   */
+  explorerTxUrl?: string;
   /** Why the chain could not be consulted. */
   reason?: string;
 }

@@ -23,6 +23,12 @@ export interface ChainState {
   issuerCount?: number;
   /** Predicates this contract has verified since deployment. */
   proofsVerified?: bigint;
+  /**
+   * The most recent transaction to touch this contract, when the indexer
+   * reports one. Carries no per-proof information: it is the contract's own
+   * history, identical for every verifier who loads the page.
+   */
+  txHash?: string;
   /** Set when `available` is false. */
   reason?: string;
 }
@@ -68,7 +74,7 @@ async function readLedger() {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       query: `query ContractState($address: HexEncoded!) {
-        contractAction(address: $address) { address state }
+        contractAction(address: $address) { address state transaction { hash } }
       }`,
       variables: { address: midnightConfig.contractAddress },
     }),
@@ -102,7 +108,14 @@ async function readLedger() {
     (action.state.match(/../g) ?? []).map((b: string) => parseInt(b, 16)),
   );
 
-  return { ledger: contract.ledger(runtime.ContractState.deserialize(bytes).data) } as const;
+  return {
+    ledger: contract.ledger(runtime.ContractState.deserialize(bytes).data),
+    // The most recent action on this contract, which for a deployment that has
+    // been called is the call rather than the deploy. Optional throughout: the
+    // indexer is free to omit it, and a missing link must never look like a
+    // failed read.
+    txHash: typeof action.transaction?.hash === "string" ? action.transaction.hash : undefined,
+  } as const;
 }
 
 /**
@@ -120,6 +133,7 @@ export async function chainState(): Promise<ChainState> {
       available: true,
       issuerCount: Number(result.ledger.issuers.size()),
       proofsVerified: result.ledger.proofsVerified,
+      txHash: result.txHash,
     };
   } catch (error) {
     return { available: false, reason: (error as Error)?.message ?? "Could not reach the chain." };

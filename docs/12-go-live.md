@@ -9,59 +9,44 @@ Link và endpoint: [23-references.md](23-references.md).
 
 ---
 
-## Trạng thái xuất phát
+## Trạng thái — **xong toàn bộ**
 
-| Thứ | Tình trạng |
+| Bước | Tình trạng |
 |---|---|
-| Circuit Compact, ledger 8 | xong, 238 test xanh |
-| App đọc ledger on-chain | xong (`lib/midnight/chain.ts`) |
-| Contract trên preprod | **đang deploy** |
-| Registry issuer trên chain | **rỗng — xem Bước 2** |
+| 0 — Deploy | ✅ `89975419a1a887b6f4d74d91…` |
+| 1 — Đặt biến env | ✅ indexer xác nhận |
+| 2 — Đăng ký issuer | ✅ `issuerCount` 0 → 1 |
+| 3 — Chạy thử end-to-end | ✅ [13-acceptance.md](13-acceptance.md) |
+| 4 — Cập nhật tài liệu | ✅ |
+| 5 — Chốt cổng chất lượng | ✅ 251 test, boundaries, build, tsc |
+
+Kết quả đo được: [13-acceptance.md](13-acceptance.md).
+
+Chỉ còn việc của chủ dự án: repo public + topic `midnightntwrk`, slide, video.
 
 ---
 
-## Bước 0 — Deploy xong
+## Bước 0 — Deploy ✅
 
-Script tự in địa chỉ. Nếu hỏng, đọc lỗi thật (giờ handler in cả `cause`,
-`code`, `data`), đối chiếu bảng mã ở [22-lessons.md](22-lessons.md) mục 6.
-
-```bash
-tail -f <log>          # theo dõi
+```
+contract  89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
+tx        0039095faf9e17c65fe65e86ffac18a08a8c0a331d9755a9b6bd81ccf6da5cae64
 ```
 
-**Kiểm chứng:** có dòng `✓ deployed` kèm địa chỉ 64 ký tự hex.
+Mất 158 phút, gần hết là sync ví. Bản thân việc deploy dưới một phút.
 
----
-
-## Bước 1 — Đặt biến môi trường
-
-Vào `.env.local`, **cả hai dòng**:
+## Bước 1 — Biến môi trường ✅
 
 ```bash
 NEXT_PUBLIC_PROOF_PROVIDER=midnight
-NEXT_PUBLIC_CONTRACT_ADDRESS=<địa chỉ vừa in>
+NEXT_PUBLIC_CONTRACT_ADDRESS=89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
 ```
 
-Thiếu dòng đầu là lỗi dễ mắc nhất: contract nằm trên chain nhưng app vẫn chạy
-mock, nên mọi công deploy trở nên vô hình.
+`npm run contract:verify` báo *"indexer confirms a contract at this address
+(ContractDeploy)"* — bằng chứng độc lập, không phải lời script deploy tự nói.
 
-**Kiểm chứng:**
-
-```bash
-npm run contract:verify
-```
-
-Script hỏi **indexer** xem chain có contract ở địa chỉ đó thật không — không
-tin vào output của deploy script. Phải thấy:
-
-```
-✓ address …
-✓ NEXT_PUBLIC_PROOF_PROVIDER=midnight
-✓ indexer confirms a contract at this address
-```
-
-Nếu báo *"indexer has no contract"*: đợi vài block rồi chạy lại. Indexer trễ
-là bình thường ngay sau deploy.
+Điều này quan trọng vì tiến trình deploy chạy bản code **cũ**, chưa có kiểm tra
+`TxStatus`. Nó sẽ in `✓ deployed` kể cả khi transaction rơi vào `FailFallible`.
 
 ---
 
@@ -86,22 +71,41 @@ truyền tay. Script dừng ngay nếu `SCHOOL_SIGNING_KEY` chưa có trong
 không lấy lại được, và mọi proof sau đó đều hỏng vì contract giữ một khoá
 không ký gì cả.
 
-**Kiểm chứng:**
+**Kiểm chứng — so với baseline đo trước khi đăng ký:**
+
+| Đọc từ chain | Trước | Sau (phải là) |
+|---|---|---|
+| `issuerCount` | 0 | **1** |
+| `issuerRegistered(3226085635)` | `false` | **`true`** |
+
+`3226085635` là `hashToField("hanoi-university")` — cùng giá trị mà app tra
+cứu và circuit đọc từ credential, có test khoá
+(`tests/issuer-identity.test.ts`).
 
 ```bash
-npm run contract:verify      # issuerCount ≥ 1
+npm run contract:verify
 ```
 
 Trang verify phải hiện *Issuer on chain: **registered***.
+
+Nếu số không đổi: transaction có thể đã vào block nhưng thất bại
+(`FailFallible`) — script đã kiểm `TxStatus` nên sẽ báo, hoặc indexer còn trễ
+vài block. Đợi rồi đọc lại trước khi kết luận.
 
 ---
 
 ## Bước 3 — Chạy thử end-to-end
 
+**Đã chạy phần lớn ngày 2026-08-29, trước khi đăng ký issuer.** Còn lại chỉ là
+chạy lại sau khi đăng ký để thấy hai giá trị on-chain đổi.
+
 ```bash
-npm run school                        # cổng 4000
 npm run dev                           # cổng 3000
 ```
+
+Chỉ một lệnh. `NEXT_PUBLIC_SCHOOL_API=/api/school/graphql` nên nhà trường chạy
+ngay trong tiến trình Next qua route nội bộ — `npm run school` (cổng 4000) chỉ
+cần khi muốn chứng minh trường là service tách rời thật, ví dụ lúc quay demo.
 
 Proof server phải đang chạy:
 
@@ -109,26 +113,37 @@ Proof server phải đang chạy:
 docker ps | grep 6300                 # phải là proof-server:8.1.0
 ```
 
-Luồng bắt buộc đi qua, **dùng cả hai sinh viên**:
+### Đã kiểm chứng
 
-| Bước | SV001 (Alice, GPA 3.72) | SV002 (Bob, GPA 2.91) |
-|---|---|---|
-| `/student/login` | đăng nhập | đăng nhập |
-| `/student/create-proof` | *GPA ≥ 3.50* | *GPA ≥ 3.50* |
-| kết quả | **proven** | **not proven** |
-| `/verify/[id]` | mở link chia sẻ | mở link chia sẻ |
+Luồng Bob (SV002, GPA 2.91) với hai mệnh đề, một đúng một sai:
 
-**Kiểm chứng — đây là phần quan trọng nhất:**
+```
+status is active       → proven
+GPA is at least 3.50   → not proven
+```
 
-1. Trang verify hiện **Issuer on chain: registered**
-2. Hiện **Predicates verified by this contract** kèm một con số
-3. `Proving system: midnight`, không phải `mock`
-4. **Không** xuất hiện `3.72`, `2.91`, `372`, `291`, tên thật, hay `SV001`
-   ở bất kỳ đâu trên trang — kể cả trong DevTools → Network
-5. Console không có lỗi đỏ
+| Kiểm | Kết quả |
+|---|---|
+| `chain.ts` chạy trong trình duyệt | ✅ trang verify đọc được ledger thật |
+| Số on-chain khớp baseline đo bằng Node | ✅ `not registered`, `0` |
+| Proof đã lưu (thứ đi kèm link chia sẻ) | ✅ không có `2.91`, `291`, `Bob`, `Tran`, `SV002` |
+| `payload` có chứa GPA không | ✅ không |
+| `provider` | ✅ `midnight`, không phải mock |
+| Lỗi console | ✅ 0 |
 
-Điểm 4 là bất biến số 1 của dự án. Ca Bob quan trọng hơn ca Alice: proof
-**thất bại** cũng không được thu hẹp giá trị bị giấu.
+**Bẫy khi tự kiểm tra riêng tư:** đừng quét mọi key localStorage chứa chữ
+"proof". `eduproof.session.credential` cũng khớp, và nó **được phép** chứa giá
+trị thật — đó là credential của sinh viên trên máy của chính họ. Thứ phải sạch
+là `eduproof.proofs.v1`.
+
+### Còn phải làm sau khi đăng ký issuer
+
+Chạy lại luồng trên, và hai dòng này phải đổi:
+
+```
+Issuer on chain                        not registered  →  registered
+Predicates verified by this contract   0               →  tăng khi có proof
+```
 
 ---
 

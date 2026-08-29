@@ -80,3 +80,11 @@ keys/private/
 
 # Dust wallet sync checkpoint — derived from your wallet, and large.
 .dust-checkpoint.json
+
+# Dust wallet sync checkpoints. Derived from your seed — never commit.
+.wallet-state/
+
+# Encrypted private-state store, written by the deploy and call scripts.
+# Machine-local runtime data keyed to MIDNIGHT_PRIVATE_STATE_PASSWORD — it
+# contains no seed, but it is yours and it is noise in a clone.
+midnight-level-db/

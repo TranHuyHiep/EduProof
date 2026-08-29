@@ -353,7 +353,12 @@ async function main() {
 
   const providers = {
     publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
-    proofProvider: httpClientProofProvider(PROOF_SERVER),
+    // The second argument is not optional in practice. Without it the provider
+    // has no way to load the circuit's IR, `/check` is sent a payload with
+    // none, and the proof server answers `400 bad input`. A deploy survives
+    // the omission because a constructor only takes the `/prove` path; the
+    // first contract CALL does not. See docs/22-lessons.md.
+    proofProvider: httpClientProofProvider(PROOF_SERVER, new NodeZkConfigProvider(ASSETS)),
     zkConfigProvider: new NodeZkConfigProvider(ASSETS),
     // The private-state store is encrypted at rest, so it needs a password and
     // an account to scope itself to.
@@ -404,7 +409,20 @@ async function main() {
 
   const address = deployed.deployTxData.public.contractAddress;
   const txId = deployed.deployTxData.public.txId;
+  const status = deployed.deployTxData.public.status;
   const hex = (id) => `0x${String(id).replace(/^0x/, "")}`;
+
+  // Included in a block is not the same as succeeded. `FailFallible` means the
+  // transaction was accepted and paid for and did not do its job — which reads
+  // as success to anything that only checks for an address coming back.
+  if (status !== "SucceedEntirely") {
+    fail(
+      `the deploy transaction did not succeed — status ${status ?? "unknown"}.\n` +
+        (txId ? `  ${EXPLORER}/transactions/${hex(txId)}\n` : "") +
+        "  Do not put this address in .env.local; there is no usable contract\n" +
+        "  at it. Check the explorer for the reason.",
+    );
+  }
 
   console.log("\n✓ deployed\n");
   console.log(`  contract  ${address}`);

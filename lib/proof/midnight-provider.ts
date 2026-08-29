@@ -17,7 +17,7 @@
 
 import type { Proof, VerificationResult } from "@/types";
 import { getSchool } from "@/lib/data";
-import { explorerContractUrl, midnightConfig } from "@/lib/midnight/config";
+import { explorerContractUrl, explorerTxUrl, midnightConfig } from "@/lib/midnight/config";
 import { encodeOperand, operatorCode, schoolIdHash } from "@/lib/midnight/encoding";
 import { attributeSpec } from "./attributes";
 import { labelOf, statementOf } from "./claims";
@@ -125,6 +125,7 @@ export class MidnightProofProvider implements ProofProvider {
             issuerCount: state.issuerCount,
             proofsVerified: state.proofsVerified?.toString(),
             explorerUrl: explorerContractUrl() ?? undefined,
+            explorerTxUrl: state.txHash ? explorerTxUrl(state.txHash) : undefined,
           }
         : { available: false, reason: state.reason },
     };

@@ -1,0 +1,156 @@
+# Biên bản nghiệm thu Wave 1
+
+Kết quả chạy thử toàn bộ trên UI sau khi contract đã deploy và issuer đã đăng ký.
+Ngày 2026-08-30. Mọi con số dưới đây là **đo được**, không phải mô tả.
+
+Cách làm lại: [12-go-live.md](12-go-live.md).
+
+---
+
+## On chain
+
+```
+contract   89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
+deploy tx  0x53a28aeb8e050e068b22ccebcc351cee87c3eb44d3e6fa06ba6695293a4884aa
+issuer tx  0x338c8d6078b3adf81cb1217023bcf272a3ed1bd7640a2151c5cfa4d2546f8759
+```
+
+- [Contract](https://preprod.midnightexplorer.com/contracts/0x89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729)
+- [Giao dịch deploy](https://preprod.midnightexplorer.com/transactions/0x53a28aeb8e050e068b22ccebcc351cee87c3eb44d3e6fa06ba6695293a4884aa)
+- [Giao dịch đăng ký issuer](https://preprod.midnightexplorer.com/transactions/0x338c8d6078b3adf81cb1217023bcf272a3ed1bd7640a2151c5cfa4d2546f8759)
+
+Ledger đọc qua `lib/midnight/chain.ts`, so với baseline đo **trước** khi đăng ký:
+
+| | Trước | Sau |
+|---|---|---|
+| `issuerCount` | 0 | **1** |
+| `issuerRegistered(3226085635)` | `false` | **`true`** |
+| `proofsVerified` | 0 | 0 |
+
+`proofsVerified` vẫn 0 là **đúng thiết kế**: proof chạy local qua proof server,
+verify chỉ **đọc** chain chứ không ghi. Muốn nó tăng thì mỗi proof phải là một
+transaction — tốn DUST và chậm vài giây mỗi lần. Đó là lựa chọn của Wave 2.
+
+Kiểm chứng độc lập bất cứ lúc nào:
+
+```bash
+npm run contract:verify
+```
+
+---
+
+## Đã chạy thử trên UI
+
+| Tính năng | Kết quả |
+|---|---|
+| Registry `/school` | 10 sinh viên, giá trị thật — góc nhìn nhà trường |
+| Kết nối ví | khoá demo, chạy được không cần extension |
+| Lấy credential | Alice SV001, GPA 3.72 hiện trên máy sinh viên |
+| Preset mệnh đề | *Scholarship application* nạp 2 mệnh đề |
+| Đổi thuộc tính mệnh đề | operator tự đặt lại về giá trị hợp lệ |
+| Sinh proof | `pf_00625d96ef77`, provider `midnight` (circuit thật) |
+| Trang verify | **2 of 2 proven** |
+| **Issuer on chain** | **`registered`** |
+| Link explorer | trỏ đúng contract |
+| Dán mã proof ở `/verify` | chuyển đúng trang |
+| Mã không tồn tại | *"No proof found"*, kèm giải thích proof lưu trên thiết bị |
+| Danh sách proof | hiển thị đúng |
+| Lỗi console | 0 (xem ghi chú bên dưới) |
+
+### Ca trượt — phần quan trọng nhất
+
+Bob (SV002, GPA 2.91) với hai mệnh đề, một đúng một sai:
+
+```
+student status is active   → proven
+GPA is at least 3.50       → not proven
+```
+
+Kiểm tra proof đã lưu — thứ thật sự đi kèm link chia sẻ:
+
+```
+wholeProofLeaks: []      không có 2.91, 291, Bob, Tran, SV002 ở bất kỳ đâu
+payloadHasGpa:   false   kể cả trong payload
+```
+
+**Proof thất bại không thu hẹp giá trị bị giấu.** Verifier biết Bob không đạt
+3.5, không biết là 2.91 hay 3.4 hay 0.5.
+
+Với Alice thì cũng không lộ `3.72`, `372`, `Alice`, `Nguyen`, `SV001`.
+
+---
+
+## Cổng chất lượng
+
+```
+npm test                  251 test / 16 file
+npm run check:boundaries  4/4 luật kiến trúc
+npm run build             13 route, không warning
+npx tsc --noEmit          sạch
+```
+
+---
+
+## Hai cảnh báo giả trong lúc test — ghi lại để khỏi lặp
+
+**1. `291` và `SV002` trong localStorage.** Chúng nằm ở
+`eduproof.session.credential` — credential của sinh viên trên máy của chính họ,
+hoàn toàn hợp lệ. Bộ lọc ban đầu quét mọi key chứa chữ `proof`, mà key đó cũng
+khớp. Thứ phải sạch là **`eduproof.proofs.v1`**.
+
+**2. `TypeError: Cannot read properties of undefined` ở `operatorPhrase`.**
+Do gán `select.value` trực tiếp bằng JS, tạo trạng thái mà UI không tạo được.
+Thao tác bằng chuột thật thì `update()` gọi `defaultClaim()` dựng lại cả
+operator lẫn giá trị. Stack trace kết thúc bằng `UtilityScript.evaluate` — dấu
+vết script tiêm, không phải tương tác người dùng.
+
+Cả hai đều là lỗi của **phép đo**, không phải của sản phẩm.
+
+---
+
+## Trước khi để repo public
+
+```bash
+npm run check:secrets
+```
+
+Kiểm tra **lịch sử git**, không phải chỉ thư mục hiện tại — `.gitignore` chỉ
+chặn commit tiếp theo, thứ đã commit rồi vẫn nằm đó và ai clone cũng lấy được.
+
+Script tìm giá trị thật của `MIDNIGHT_WALLET_SEED` (cả dạng chữ lẫn hex dẫn
+xuất), `MIDNIGHT_PRIVATE_STATE_PASSWORD`, `SCHOOL_SIGNING_KEY` trong mọi
+commit, và xác nhận `.env.local`, `.wallet-state/`, `midnight-level-db/` không
+bị theo dõi. Nó không in ra giá trị nào.
+
+Đã chạy 2026-08-30: **lịch sử sạch**, không bí mật nào từng vào git.
+
+### Không đưa cho người khác
+
+| Thứ | Vì sao |
+|---|---|
+| `MIDNIGHT_WALLET_SEED` | là khoá ví — ai có thì tiêu được toàn bộ tiền, ở mọi mạng |
+| `.wallet-state/*.json` | dẫn xuất từ seed; không tiêu được tiền nhưng phơi toàn bộ UTXO và lịch sử ví |
+| `MIDNIGHT_PRIVATE_STATE_PASSWORD` | khoá mã hoá kho private state |
+| `midnight-level-db/` | kho private state đã mã hoá — dữ liệu chạy của máy mày |
+
+Người clone **không cần** thứ nào ở trên. Mặc định app chạy provider `mock`,
+không cần ví, Docker hay toolchain. Muốn chạy circuit thật thì họ tự tạo ví
+của họ.
+
+`midnight-level-db/` từng bị commit nhầm — đã gỡ khỏi git (giữ trên đĩa) và
+thêm vào `.gitignore`. Đã kiểm tra: nó **không** chứa seed.
+
+---
+
+## Còn thiếu để nộp bài
+
+Không phải việc code. Thiếu là **bị loại thẳng**:
+
+| # | Việc | Hệ quả nếu thiếu |
+|---|---|---|
+| 1 | Repo public + topic `midnightntwrk` | loại, không được chấm |
+| 2 | Slide deck | mất 10% rubric |
+| 3 | Video demo 3–5 phút | cùng 10% đó |
+
+Video nên quay đúng luồng ở bảng trên. Cảnh thuyết phục nhất là **ca Bob** —
+hệ thống trả lời "không" mà vẫn không lộ 2.91.

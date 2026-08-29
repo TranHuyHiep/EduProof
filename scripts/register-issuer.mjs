@@ -112,7 +112,7 @@ async function main() {
 
   const providers = {
     publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
-    proofProvider: httpClientProofProvider(PROOF_SERVER),
+    proofProvider: httpClientProofProvider(PROOF_SERVER, new NodeZkConfigProvider(ASSETS)),
     zkConfigProvider: new NodeZkConfigProvider(ASSETS),
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: PRIVATE_STATE_ID,
@@ -148,9 +148,27 @@ async function main() {
     runtime.constructJubjubPoint(issuerPk.x, issuerPk.y),
   );
 
-  const txId = result?.public?.txId ?? result?.txId;
+  // A transaction can reach a block and still have failed. `FailFallible`
+  // means it was included, paid for, and did not do what it was asked — which
+  // looks exactly like success to anything only checking for a txId.
+  //
+  // Only `txId` and `status` are read here: the result also carries the
+  // call's private state, which the SDK marks confidential.
+  const { public: pub } = result;
+  const status = pub?.status;
+
+  if (status !== "SucceedEntirely") {
+    console.log(`\r${" ".repeat(60)}`);
+    fail(
+      `the transaction did not succeed — status ${status ?? "unknown"}.\n` +
+        (pub?.txId ? `  ${EXPLORER}/transactions/0x${pub.txId}\n` : "") +
+        "  The issuer is NOT registered. Nothing was silently half-done:\n" +
+        "  check the explorer, then run this again.",
+    );
+  }
+
   console.log(`\r✓ ${school.id} registered${" ".repeat(40)}`);
-  if (txId) console.log(`  ${EXPLORER}/transactions/0x${txId}`);
+  if (pub?.txId) console.log(`  ${EXPLORER}/transactions/0x${pub.txId}`);
 
   await walletProvider.stop();
 

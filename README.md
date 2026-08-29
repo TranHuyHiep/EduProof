@@ -149,11 +149,18 @@ Stated plainly, because overclaiming is easy to check.
   exist on ledger 8's language 0.23, so the verification is hand-rolled in
   [`contracts/src/schnorr.compact`](contracts/src/schnorr.compact).
 
+- **It is deployed.** The contract is live on Preprod at
+  [`89975419a1a887b6…`](https://preprod.midnightexplorer.com/contracts/0x89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729),
+  and verifying a proof reads its ledger — the issuer registry and the
+  verification counter — rather than taking this app's word for either.
+  `npm run contract:verify` asks the indexer, so you need not take ours.
+
 **Not yet:**
-- The issuer registry is built in memory per session, not read from chain.
 - No Lace wallet connection.
 - A proof link opens only on the device that created it — there is no server
   store behind it yet.
+- A proof is not itself submitted as a transaction: the circuit's verdict is
+  computed locally and the chain is read, not written, when verifying.
 
 ### The trust boundary we did not paper over
 

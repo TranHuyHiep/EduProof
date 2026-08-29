@@ -243,6 +243,154 @@ hex từ 32 ký tự trở lên.
 
 ---
 
+## 7. Sync lại từ đầu mỗi lần — và cách chữa
+
+Ví dust sync từ genesis (~1.46 triệu index, ~2.5 giờ trên Preprod) và testkit
+vứt state đi khi tiến trình kết thúc. Hai transaction là hai lần sync.
+
+### testkit không có đường khôi phục — nhưng các gói dưới nó thì có
+
+Tìm trong `testkit-js` sẽ thấy đường cụt, và **đó là kết luận sai**:
+
+| Trong testkit | Thực tế |
+|---|---|
+| `MidnightWalletProvider.build()` | chỉ nhận `(logger, env, seed)` |
+| `FluentWalletBuilder` | có `withSeed`, không có `withState` |
+| `WalletSaveStateProvider.save()` | chỉ nhận **shielded/unshielded**, không nhận dust |
+| `WalletFactory.restoreShieldedWallet` | shielded, không phải dust |
+
+Nhưng mọi mảnh testkit dùng bên trong đều được **các gói gốc export**:
+
+```
+createKeystore                     wallet-sdk-unshielded-wallet
+DustWallet(config).restore(state)  wallet-sdk-dust-wallet
+WalletEntrySchema                  wallet-sdk-facade
+mergeWalletEntries                 wallet-sdk-facade
+InMemoryTransactionHistoryStorage  wallet-sdk-abstractions
+ZswapSecretKeys, DustSecretKey     ledger-v8            ← KHÔNG phải compact-runtime
+WalletFactory, WalletSeeds         testkit-js
+MidnightWalletProvider.withWallet  testkit-js
+```
+
+Ghép lại là dựng được đúng ví testkit dựng, chỉ thay **một** chỗ: dust wallet
+đến từ `restore(savedState)` thay vì `startWithSeed(...)`.
+
+Cài đặt: [scripts/lib/wallet-restore.mjs](../scripts/lib/wallet-restore.mjs),
+nối vào [scripts/lib/wallet-setup.mjs](../scripts/lib/wallet-setup.mjs).
+
+### Ba điều dễ sai
+
+**Lưu ở đường ra, không lưu trong nhánh đợi sync.** Khôi phục thành công thì
+DUST đã khác 0, nhánh `if (dust === 0n)` không chạy — checkpoint sẽ không bao
+giờ được làm mới.
+
+**Checkpoint hỏng không được làm hỏng việc.** JSON hỏng → `readCheckpoint` trả
+`null`; state rác → `providerFromCheckpoint` ném lỗi bắt được → quay về sync
+đầy đủ. Cả hai đã thử bằng file hỏng thật.
+
+**Đừng commit.** File dẫn xuất từ seed. `.wallet-state/` đã gitignore.
+
+**Dust wallet có `costParameters` riêng, khác cái của facade.** testkit dựng nó
+từ `DEFAULT_DUST_OPTIONS` với **ba** trường:
+
+```js
+costParameters: {
+  ledgerParams: LedgerParameters.initialParameters(),   // từ ledger-v8
+  additionalFeeOverhead: 0n,
+  feeBlocksMargin: 5,
+}
+```
+
+Thiếu `ledgerParams` thì ví khôi phục sync đúng nhưng **tính phí sai** — kiểu
+hỏng không báo lỗi, chỉ lộ ra lúc node từ chối transaction. Log của testkit ở
+mức INFO có in `Creating dust wallet with params: …`, đối chiếu được.
+
+### Ba thứ Midnight không đảm bảo, nên tự phòng
+
+Hỏi support thì được xác nhận: **không có tài liệu nào** nói checkpoint cũ tới
+mức nào thì hỏng, `restore()` có kiểm tra network/seed không, hay format có
+tương thích giữa các phiên bản không. Nên code tự phòng cả ba:
+
+**Kiểm tra progress sau khi khôi phục.** testkit của Midnight cũng không tin
+restored state — nó so applied với highest rồi fallback nếu vô lý. Bản của
+mình: `appliedIndex > highestRelevantWalletIndex` nghĩa là state không thuộc
+chain này (sai network, hoặc chain đã reset) → sync lại từ đầu.
+
+**Ghi version vào checkpoint.** `serializeState()` có `protocolVersion` nội bộ
+nhưng không cam kết đọc được sau khi nâng cấp. Lệch version thì bỏ file. Mất
+một checkpoint tốn một lần sync; nạp file thư viện không còn hiểu có thể tốn
+một transaction.
+
+**Đọc version thẳng từ `node_modules`.** Export map của
+`wallet-sdk-dust-wallet` chặn cả `import.meta.resolve` lẫn `require.resolve`,
+kể cả với chính `package.json` của nó (`ERR_PACKAGE_PATH_NOT_EXPORTED`). Dùng
+resolver sẽ trả `"unknown"`, và khi đó **mọi** checkpoint đều bị bỏ — tính năng
+im lặng vô dụng, triệu chứng giống hệt "chưa có checkpoint". Đã suýt ship lỗi
+này; chỉ lộ ra vì có test cả hai chiều khớp/lệch.
+
+### Vẫn nên đếm trước số transaction
+
+Checkpoint không xoá được cái giá của lần sync **đầu tiên**. Wave 1 cần hai
+transaction (deploy, đăng ký issuer); gộp đăng ký vào ngay sau deploy trong
+cùng tiến trình thì chỉ mất một lần chờ.
+
+Verify proof thì **đọc** chain (`lib/midnight/chain.ts`) — không ví, không
+sync, không phí.
+
+---
+
+## 8. `httpClientProofProvider` thiếu tham số thứ hai → `400 bad input`
+
+Triệu chứng khi gọi circuit đầu tiên trên contract đã deploy:
+
+```
+✗ 'check' returned an error: Failed Proof Server response:
+  url="http://localhost:6300/check", code="400", status="Bad Request"
+```
+
+SDK **nuốt mất body**, mà body mới là thứ nói lý do. `makeHttpRequest` chỉ đọc
+`status`/`statusText`. Vá tạm để in body ra thì thấy `"bad input"`.
+
+### Nguyên nhân
+
+```js
+httpClientProofProvider(PROOF_SERVER)                              // sai
+httpClientProofProvider(PROOF_SERVER, new NodeZkConfigProvider(ASSETS))  // đúng
+```
+
+Chữ ký là `(url, zkConfigProvider, config)`. Thiếu tham số thứ hai thì
+`getKeyMaterial` trả `undefined` — và nó nuốt lỗi bằng `catch {}` nên không
+báo gì — rồi `createCheckPayload(preimage, undefined)` gửi đi payload không có
+IR. Server từ chối.
+
+### Vì sao deploy vẫn chạy được
+
+Deploy chỉ chạy **constructor**, đi đường `/prove`, mà `/prove` chịu được
+`keyMaterial` thiếu. `/check` thì bắt buộc cần IR. `registerIssuer` là **lời
+gọi circuit đầu tiên** của dự án, nên đó là lần đầu `/check` được dùng.
+
+Deploy thành công **không** chứng minh proof provider được cấu hình đúng.
+
+### Bẫy chẩn đoán
+
+`registerIssuer.bzkir` chỉ 135 byte (so với 691 của `proveCredentialPredicate`)
+trông như artifact hỏng. Không phải — circuit đó chỉ làm một phép `insert` vào
+Map, không có phép toán đường cong. Header `midnight:ir-source[v2]:` hợp lệ.
+
+Sau khi sửa, `/check` trả về **5 phần tử** bình thường. Endpoint không hỏng.
+
+### Cách lấy body lỗi khi cần
+
+```js
+// tạm trong node_modules/@midnight-ntwrk/midnight-js-http-client-proof-provider/dist/index.mjs
+let body = ''; try { body = await response.clone().text(); } catch {}
+throw new Error(`... body="${body.slice(0, 400)}"`);
+```
+
+Nhớ hoàn nguyên sau khi xong. Đáng mở issue với midnight-js về việc vứt body.
+
+---
+
 ## Ma trận phiên bản ledger 8 — tra một lần, dùng mãi
 
 Link tài liệu, endpoint Preprod và phiên bản đang chạy:

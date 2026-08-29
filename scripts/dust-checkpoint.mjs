@@ -14,14 +14,29 @@
 // `dust` property. It is deliberately a separate script from the deploy so
 // that saving a checkpoint cannot break a deploy that is working.
 //
-// STATUS: the `save` path has never been run end to end. It waits for a
-// complete sync before it can serialize, so exercising it costs the same two
-// hours the deploy does, and the deploy took priority. `show` works. Treat a
-// successful `save` as unverified until someone watches it write a file.
+// STATUS: SAVE WORKS IN PRINCIPLE, RESTORE DOES NOT. Verified 2026-08-29 by
+// reading the SDK's types, after a second full sync made the cost concrete.
 //
-// Restoring is not wired up either: MidnightWalletProvider.build() takes only
-// (logger, env, seed), so a restore has to go through DustWallet(...).restore()
-// and MidnightWalletProvider.withWallet(...) — both exist, neither is used here.
+// `provider.wallet.dust` is a DustWalletAPI, and that type exposes
+// serializeState() but NOT restore(). `restore()` lives on the dust wallet
+// CLASS (CustomizedDustWalletClass), so it can only be used while CONSTRUCTING
+// a wallet — and testkit's construction path is closed:
+//
+//   MidnightWalletProvider.build()   takes only (logger, env, seed)
+//   FluentWalletBuilder              has withSeed/withMnemonic, no withState
+//   buildWithoutStarting()           calls WalletFactory.createDustWallet(...)
+//                                    which calls startWithSeed, not restore
+//
+// Rebuilding that path by hand needs createKeystore() and
+// mapEnvironmentToConfiguration(), neither of which testkit exports.
+//
+// So a checkpoint written here cannot currently be loaded back. Restoring
+// would mean dropping testkit and driving wallet-sdk directly — a rewrite of
+// the whole wallet layer, which is a far larger risk than the wait it saves.
+//
+// This file is kept because the saved state is real and the situation may
+// change: if testkit ever exposes a restore path, the file it writes is the
+// input that path will want.
 //
 // The saved file contains wallet sync state, not keys — but it is derived from
 // your wallet, so it is gitignored along with everything else local.

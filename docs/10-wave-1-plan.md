@@ -14,7 +14,7 @@ Cập nhật: 2026-08-29
 | 2 | Slide deck | chủ dự án | 10% rubric |
 | 3 | Video demo 3–5 phút | chủ dự án | cùng 10% đó |
 
-**Đang chạy nền:** deploy contract lên preprod. Xem [Trạng thái deploy](#trạng-thái-deploy).
+**Phần code đã xong hết.** Contract sống trên preprod, issuer đã đăng ký, đã chạy thử toàn bộ trên UI — [13-acceptance.md](13-acceptance.md).
 
 Không còn việc code nào bắt buộc cho Wave 1.
 
@@ -44,32 +44,30 @@ compile thành công, nếu không bị loại thẳng.
 
 ## Trạng thái deploy
 
+**Đã deploy lên preprod ngày 2026-08-29.**
+
+```
+contract  89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
+tx        53a28aeb8e050e068b22ccebcc351cee87c3eb44d3e6fa06ba6695293a4884aa
+```
+
+- [Contract trên explorer](https://preprod.midnightexplorer.com/contracts/0x89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729)
+- [Giao dịch deploy](https://preprod.midnightexplorer.com/transactions/0x53a28aeb8e050e068b22ccebcc351cee87c3eb44d3e6fa06ba6695293a4884aa)
+
+Kiểm chứng bất cứ lúc nào — script hỏi indexer, không đọc lại lời script deploy:
+
+```bash
+npm run contract:verify
+```
+
 Contract build cho **ledger 8** (toolchain 0.31.1) vì preprod chạy ledger 8.
 
-```
-npm run contract:build    biên dịch, đã pin 0.31.1
-npm run wallet:register-dust   đăng ký NIGHT sinh DUST (nếu chưa)
-npm run contract:deploy   deploy, hỏi xác nhận trước khi ghi lên chain
-```
+Các bước còn lại để chạy thật: [12-go-live.md](12-go-live.md).
 
-Sau khi deploy xong, đặt **cả hai** biến vào `.env.local`:
-
-```
-NEXT_PUBLIC_PROOF_PROVIDER=midnight     ← thiếu cái này thì vẫn chạy mock
-NEXT_PUBLIC_CONTRACT_ADDRESS=<địa chỉ>
-```
-
-Quên biến đầu là lỗi dễ mắc: contract đã lên chain nhưng app vẫn chạy mock, nên
-link tới block explorer không hiện ra và công deploy coi như không thấy được.
-
-Khi có đủ hai biến, banner đổi thành *"the contract is deployed to preprod"* kèm
-link, và trang verify thêm dòng mời tra cứu trên explorer. Trong khi
-`NEXT_PUBLIC_CONTRACT_ADDRESS` còn rỗng, phần xác minh on-chain tự nói là chưa
-có, thay vì hiện một dấu tick vô nghĩa.
-
-**Nút thắt đã biết:** dust wallet sync từ genesis (~1.46 triệu index, khoảng
-90 phút). Fee balancer tiêu từ view local nên phải đợi sync xong, dù trên chain
-đã có DUST. Script deploy tự đợi và in tiến độ. Chi tiết: [22-lessons.md](22-lessons.md).
+**Nút thắt đã xử lý:** dust wallet sync từ genesis (~1.46 triệu index, khoảng
+2.5 giờ) và testkit **không lưu state giữa các lần chạy**. Đã thêm checkpoint
+(`scripts/lib/wallet-restore.mjs`): lần sync đầu vẫn lâu, các lần sau khôi phục
+dưới một phút. Chi tiết: [22-lessons.md](22-lessons.md).
 
 ---
 
