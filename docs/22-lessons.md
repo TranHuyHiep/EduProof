@@ -339,6 +339,58 @@ sync, không phí.
 
 ---
 
+## 8. `httpClientProofProvider` thiếu tham số thứ hai → `400 bad input`
+
+Triệu chứng khi gọi circuit đầu tiên trên contract đã deploy:
+
+```
+✗ 'check' returned an error: Failed Proof Server response:
+  url="http://localhost:6300/check", code="400", status="Bad Request"
+```
+
+SDK **nuốt mất body**, mà body mới là thứ nói lý do. `makeHttpRequest` chỉ đọc
+`status`/`statusText`. Vá tạm để in body ra thì thấy `"bad input"`.
+
+### Nguyên nhân
+
+```js
+httpClientProofProvider(PROOF_SERVER)                              // sai
+httpClientProofProvider(PROOF_SERVER, new NodeZkConfigProvider(ASSETS))  // đúng
+```
+
+Chữ ký là `(url, zkConfigProvider, config)`. Thiếu tham số thứ hai thì
+`getKeyMaterial` trả `undefined` — và nó nuốt lỗi bằng `catch {}` nên không
+báo gì — rồi `createCheckPayload(preimage, undefined)` gửi đi payload không có
+IR. Server từ chối.
+
+### Vì sao deploy vẫn chạy được
+
+Deploy chỉ chạy **constructor**, đi đường `/prove`, mà `/prove` chịu được
+`keyMaterial` thiếu. `/check` thì bắt buộc cần IR. `registerIssuer` là **lời
+gọi circuit đầu tiên** của dự án, nên đó là lần đầu `/check` được dùng.
+
+Deploy thành công **không** chứng minh proof provider được cấu hình đúng.
+
+### Bẫy chẩn đoán
+
+`registerIssuer.bzkir` chỉ 135 byte (so với 691 của `proveCredentialPredicate`)
+trông như artifact hỏng. Không phải — circuit đó chỉ làm một phép `insert` vào
+Map, không có phép toán đường cong. Header `midnight:ir-source[v2]:` hợp lệ.
+
+Sau khi sửa, `/check` trả về **5 phần tử** bình thường. Endpoint không hỏng.
+
+### Cách lấy body lỗi khi cần
+
+```js
+// tạm trong node_modules/@midnight-ntwrk/midnight-js-http-client-proof-provider/dist/index.mjs
+let body = ''; try { body = await response.clone().text(); } catch {}
+throw new Error(`... body="${body.slice(0, 400)}"`);
+```
+
+Nhớ hoàn nguyên sau khi xong. Đáng mở issue với midnight-js về việc vứt body.
+
+---
+
 ## Ma trận phiên bản ledger 8 — tra một lần, dùng mãi
 
 Link tài liệu, endpoint Preprod và phiên bản đang chạy:

@@ -353,7 +353,12 @@ async function main() {
 
   const providers = {
     publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
-    proofProvider: httpClientProofProvider(PROOF_SERVER),
+    // The second argument is not optional in practice. Without it the provider
+    // has no way to load the circuit's IR, `/check` is sent a payload with
+    // none, and the proof server answers `400 bad input`. A deploy survives
+    // the omission because a constructor only takes the `/prove` path; the
+    // first contract CALL does not. See docs/22-lessons.md.
+    proofProvider: httpClientProofProvider(PROOF_SERVER, new NodeZkConfigProvider(ASSETS)),
     zkConfigProvider: new NodeZkConfigProvider(ASSETS),
     // The private-state store is encrypted at rest, so it needs a password and
     // an account to scope itself to.

@@ -112,7 +112,7 @@ async function main() {
 
   const providers = {
     publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
-    proofProvider: httpClientProofProvider(PROOF_SERVER),
+    proofProvider: httpClientProofProvider(PROOF_SERVER, new NodeZkConfigProvider(ASSETS)),
     zkConfigProvider: new NodeZkConfigProvider(ASSETS),
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: PRIVATE_STATE_ID,
