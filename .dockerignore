@@ -1,0 +1,26 @@
+# Build outputs and dependencies are produced inside the image.
+node_modules
+.next
+out
+
+# Never let a real key into an image layer.
+.env
+.env.local
+.env.*.local
+
+.git
+.gitignore
+.playwright-mcp
+tsconfig.tsbuildinfo
+npm-debug.log*
+
+# Documentation and planning: not needed at runtime.
+PLAN-MUST-READ-FIRST
+*.md
+!README.md
+
+# Contract SOURCES are not needed — but contracts/build IS: the compiled
+# artifacts are what the app loads, and the image has no Compact toolchain.
+contracts/src
+contracts/tests
+tests

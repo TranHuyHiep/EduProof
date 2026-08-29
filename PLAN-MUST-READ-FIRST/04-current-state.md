@@ -1,5 +1,21 @@
 # 04 — Hiện trạng repo (cập nhật 2026-08-29)
 
+> **CẬP NHẬT 29/08/2026 — Phase 2 và 3 đã xong phần code.**
+> File này mô tả trạng thái *trước* Phase 2. Những gì đã thêm vào từ đó:
+>
+> - `contracts/` — circuit Compact, đã compile, 40 test
+> - `lib/midnight/` — encoding, local-runner, prover
+> - `lib/proof/midnight-provider.ts` — provider thật, chọn qua `NEXT_PUBLIC_PROOF_PROVIDER`
+> - `lib/school/circuit-vector.ts` + khoá JubJub trong `keys.ts`
+> - Schema GraphQL mở rộng **cộng thêm**: `circuitPublicKey`, `circuitSignature`,
+>   `circuitVector`, tham số `subjectCommitment`
+> - `Dockerfile`, `Dockerfile.school`, `docker-compose.yml`, `.dockerignore`, `vercel.json`
+> - README viết lại, `DEPLOYMENT.md` mới, `SCHOOL-INTEGRATION.md` cập nhật §5
+>
+> Cổng kiểm tra: **225 test**, build sạch không warning, boundaries 4/4, tsc sạch.
+> Xem `00-README.md` để biết việc còn lại.
+
+
 > ⚠️ **File này viết cho server Linux `/root/eduproof`.** Từ 29/08 dự án làm trên
 > **máy Mac** `/Users/trinhbach/Workspace/working/eduproof/EduProof`.
 > Phần §1 và §3 bên dưới đã lỗi thời — trạng thái đúng nhất nằm ở

@@ -1,0 +1,78 @@
+{
+  "manifest-version": "1",
+  "compiler-version": "0.34.0",
+  "language-version": "0.26.0",
+  "runtime-version": "0.19.0",
+  "compiler": {
+    "type": "directory",
+    "contract-info.json": {
+      "type": "file",
+      "size": 2931,
+      "hash": "3164994656ace936273d53f6d28039817dcd023a7e39d49c919c73a00aa53914"
+    }
+  },
+  "contract": {
+    "type": "directory",
+    "index.d.ts": {
+      "type": "file",
+      "size": 4001,
+      "hash": "9801ccbbece2180681f679bd2a5fcaf4a6e05f98428fe1fec531d0446767819a"
+    },
+    "index.js": {
+      "type": "file",
+      "size": 43843,
+      "hash": "592ae959e9aca00ca79a5b62cd1ac9be8022423bae0f85be70cb2ccea363d0bf"
+    },
+    "index.js.map": {
+      "type": "file",
+      "size": 2713,
+      "hash": "9172adeb9f3213422dfd8302ac7f16e6f84f90424365029ab70800ac048df506"
+    }
+  },
+  "zkir": {
+    "type": "directory",
+    "proveCredentialPredicate.bzkir": {
+      "type": "file",
+      "size": 623,
+      "hash": "1a614c972815f9fce4d1cf48aaad37053f00f5163c19a038089d05859d88292c"
+    },
+    "proveCredentialPredicate.zkir": {
+      "type": "file",
+      "size": 7760,
+      "hash": "fc41445ce2f9a67269d947f6b0f392ebf86861b9ce6611167825735e690fc9fb"
+    },
+    "registerIssuer.bzkir": {
+      "type": "file",
+      "size": 135,
+      "hash": "cc7667f15b2b036bdef47cc4cbb81ca43a1fe11a6dd5cab6d0fadffb5816ff70"
+    },
+    "registerIssuer.zkir": {
+      "type": "file",
+      "size": 1536,
+      "hash": "fc81e050bec8105c6ed641b697dac7f40f44587b4fbabcc2895edbda00fddb5e"
+    }
+  },
+  "keys": {
+    "type": "directory",
+    "proveCredentialPredicate.prover": {
+      "type": "file",
+      "size": 689169,
+      "hash": "ebda9c023398a561757bf99e0c7dd54d07be9e5b6cb0401640f9a77e49909192"
+    },
+    "proveCredentialPredicate.verifier": {
+      "type": "file",
+      "size": 1591,
+      "hash": "3ff88503c5b659e301542250ab1f78e64728b3a61be6544343b7400ecb59e615"
+    },
+    "registerIssuer.prover": {
+      "type": "file",
+      "size": 22650,
+      "hash": "1774351768bc969584e9643e91fd08461a4841fa97b56bce935a533a343870f4"
+    },
+    "registerIssuer.verifier": {
+      "type": "file",
+      "size": 1351,
+      "hash": "e3b0284c83b63d00174de2701a5417a23dba6061bdcca7c9485e2487fae0d69c"
+    }
+  }
+}

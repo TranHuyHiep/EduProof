@@ -272,6 +272,10 @@ Cần chạy `npm run school:genkey` và điền `.env.local` trước khi vào 
 
 ## 7. Test — bước 6 (29/08/2026)
 
+> Con số dưới đây là trạng thái **khi kết thúc Phase 1**. Sau Phase 2 đã lên
+> **227 test / 11 file** — thêm test circuit, encoding, chữ ký issuer, và
+> provider Midnight. Xem `00-README.md`.
+
 `npm test` → **138 test / 6 file / ~0.2 giây**. Runner: **Vitest** (đúng khuyến nghị
 khối H — nhẹ, không thêm gánh nặng build; `vitest` là devDependency nên **không lọt
 vào bundle client**, First Load JS vẫn 102 kB).

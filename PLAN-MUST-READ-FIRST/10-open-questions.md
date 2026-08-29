@@ -60,7 +60,21 @@ Nghĩa là school API **không phải mock cho tiện** — nó là **đặc t�
 
 ---
 
-## 🔴 Q3 — Bản Vercel chạy chế độ nào?
+## ✅ Q3 — Bản Vercel chạy chế độ nào? — **ĐÃ XONG (29/08)**
+
+> **Kết quả kiểm chứng: proof server ngoài DÙNG ĐƯỢC, CORS mở hoàn toàn.**
+> Không cần proxy → không có nguy cơ phá vỡ lời hứa riêng tư. Chi tiết số liệu
+> ở `06-phase2-midnight.md` §5.1.
+>
+> **Đã cài theo phương án C**: `NEXT_PUBLIC_PROOF_PROVIDER` chọn `mock` (mặc
+> định) hoặc `midnight`. Vào là dùng được ngay, ai muốn ZK thật thì bật cờ.
+> Banner trên đầu trang tự đổi chữ theo chế độ đang chạy, nên không nói quá.
+>
+> Đánh đổi tin cậy (proof server **nhìn thấy witness**) đã ghi rõ trong README
+> mục "The trust boundary we did not paper over" và trong `DEPLOYMENT.md`.
+
+<details><summary>Bối cảnh và các phương án đã cân nhắc</summary>
+
 
 Xem `06-phase2-midnight.md` §5.
 
@@ -88,6 +102,8 @@ chế độ Midnight kèm hướng dẫn. Đáp ứng cả tiêu chí "trực qu
   báo lại chứ không tự ý làm.
 → Lưu ý cần nói rõ trong README/slide: proof server **nhìn thấy witness**, nên dùng
   server bên thứ ba là một **đánh đổi tin cậy**. Trình bày đúng thì đây là điểm cộng.
+
+</details>
 
 ---
 

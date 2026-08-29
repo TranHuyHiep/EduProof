@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { providerName } from "@/lib/midnight/config";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,8 +19,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="flex min-h-screen flex-col">
+        {/*
+          Says which proving system is actually running. Hardcoding it was
+          wrong in both directions once the circuit existed: it understated the
+          Midnight build and would have overstated the mock.
+        */}
         <div className="no-print border-b border-rule-soft bg-paper-deep px-5 py-1.5 text-center text-[11px] tracking-wide text-ink-faint">
-          Prototype · claims are evaluated in the open · zero-knowledge proving arrives in phase two
+          {providerName() === "midnight"
+            ? "Statements are proven by a Compact circuit · the contract is not yet deployed to a network"
+            : "Demo mode · statements are evaluated in the open · run with NEXT_PUBLIC_PROOF_PROVIDER=midnight for the real circuit"}
         </div>
 
         <header className="no-print border-b border-rule bg-paper/95 backdrop-blur">

@@ -15,8 +15,8 @@
 // directly, so no attribute value ever reaches an EduProof server.
 
 import { buildSchema, graphql, type GraphQLSchema } from "graphql";
-import { issueCredential } from "./credential.ts";
-import { issuerPublicKey } from "./keys.ts";
+import { issueCredential, signForCircuit } from "./credential.ts";
+import { circuitPublicKey, issuerPublicKey } from "./keys.ts";
 import type { SchoolProfile, StudentRecord } from "./types.ts";
 
 export const typeDefs = /* GraphQL */ `
@@ -53,6 +53,14 @@ export const typeDefs = /* GraphQL */ `
     credential it is checking, which would prove nothing.
     """
     issuerPublicKey: String!
+
+    """
+    The JubJub public key the on-chain issuer registry holds.
+    A different curve from issuerPublicKey, because a circuit verifies JubJub
+    Schnorr cheaply and Ed25519 not at all. Same institution, same credential,
+    two signatures over two representations of it.
+    """
+    circuitPublicKey: CurvePoint!
   }
 
   """
@@ -77,6 +85,26 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  A point on the JubJub curve, as decimal strings.
+  Field elements exceed Int, and GraphQL has no bigint, so they travel as
+  strings and are parsed back by the client.
+  """
+  type CurvePoint {
+    x: String!
+    y: String!
+  }
+
+  """
+  A Schnorr signature over the JubJub curve.
+  This is the signature a zero-knowledge circuit can verify. It covers the
+  canonical FIELD VECTOR, not the JSON — a circuit has no parser.
+  """
+  type CircuitSignature {
+    announcement: CurvePoint!
+    response: String!
+  }
+
+  """
   A signed credential. Held only on the student's device.
   The signature covers the RFC 8785 canonical JSON of every field except
   the signature itself.
@@ -91,6 +119,21 @@ export const typeDefs = /* GraphQL */ `
     expiresAt: DateTime!
     "Ed25519 over the canonical form, base64."
     signature: String!
+
+    """
+    Schnorr over the canonical field vector, for circuit verification.
+    Null when the request did not supply a subject commitment: the vector
+    binds the credential to its holder, so it cannot be built without one.
+    """
+    circuitSignature: CircuitSignature
+
+    """
+    The field vector the circuit signature covers, as decimal strings.
+    Returned so an integrator can check the encoding rather than having to
+    reimplement it blind. Derivable from the attributes above; see
+    lib/school/canonical.ts for the slot table.
+    """
+    circuitVector: [String!]
   }
 
   "A full record. Registrar zone only."
@@ -124,7 +167,7 @@ export const typeDefs = /* GraphQL */ `
     A production implementation authenticates the caller and ignores any
     identifier but their own. This demo trusts the argument.
     """
-    credential(studentId: ID!): SignedCredential
+    credential(studentId: ID!, subjectCommitment: String): SignedCredential
 
     """
     Every record the institution holds. REGISTRAR ROLE REQUIRED.
@@ -156,17 +199,35 @@ export interface SchoolData {
 }
 
 /** Resolvers, as a root value. Small enough that a resolver map earns nothing. */
+/** Field elements exceed GraphQL's Int, so points travel as decimal strings. */
+function pointToStrings(p: { x: bigint; y: bigint }) {
+  return { x: p.x.toString(), y: p.y.toString() };
+}
+
 function rootValue(data: SchoolData) {
   const inSchool = (schoolId?: string) =>
     schoolId ? data.students.filter((s) => s.schoolId === schoolId) : data.students;
 
   return {
-    school: () => ({ ...data.school, issuerPublicKey: issuerPublicKey() }),
+    school: async () => ({
+      ...data.school,
+      issuerPublicKey: issuerPublicKey(),
+      circuitPublicKey: pointToStrings(await circuitPublicKey()),
+    }),
 
-    credential: ({ studentId }: { studentId: string }) => {
-      const student = data.students.find((s) => s.id === studentId);
-      if (!student) throw new Error(`No student ${studentId}`);
-      return issueCredential(student, data.school);
+    credential: async (args: { studentId: string; subjectCommitment?: string }) => {
+      const student = data.students.find((s) => s.id === args.studentId);
+      if (!student) throw new Error(`No student ${args.studentId}`);
+
+      const credential = issueCredential(student, data.school);
+      if (!args.subjectCommitment) return credential;
+
+      // The commitment binds the credential to whoever holds the secret behind
+      // it. The school never learns that secret — it only signs the binding.
+      return {
+        ...credential,
+        ...(await signForCircuit(credential, BigInt(args.subjectCommitment))),
+      };
     },
 
     registrar: ({ schoolId }: { schoolId?: string }) => inSchool(schoolId),

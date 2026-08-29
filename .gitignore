@@ -14,6 +14,13 @@ out/
 build/
 dist/
 
+# Exception: the compiled contract. See the Midnight section below for why.
+# A negation cannot re-include a file whose PARENT directory is excluded, so
+# the directory is un-ignored first, then its contents.
+!contracts/build/
+!contracts/build/**
+
+
 # Production
 *.tsbuildinfo
 next-env.d.ts
@@ -55,14 +62,14 @@ Thumbs.db
 # Deployment
 .vercel
 
-# --- Midnight / Compact (phases sau) ---
-# Artifact biên dịch: proving key rất nặng, sinh lại được bằng `compact compile`
+# --- Midnight / Compact ---
+# Artifact biên dịch **ĐƯỢC COMMIT** (đổi lại quyết định cũ, 29/08).
+#
+# Lý do cũ: "proving key rất nặng". Thực tế circuit này chỉ 788K tổng cộng —
+# không đáng kể với git. Còn cái giá của việc KHÔNG commit thì lớn: deploy sẽ
+# cần cài Compact toolchain, và compile lúc build sẽ đụng giới hạn của Vercel.
+# Xem PLAN-MUST-READ-FIRST/06-phase2-midnight.md §5.3.
 contracts/**/managed/
-contracts/**/keys/
-*.prover
-*.verifier
-*.zkir
-*.bzkir
 
 # Không bao giờ commit khoá bí mật của trường hay ví sinh viên
 *.seed

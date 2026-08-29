@@ -42,6 +42,17 @@ export interface SignedCredential {
   issuedAt: string;
   expiresAt: string;
   signature: string;
+  /**
+   * Schnorr over the canonical field vector — what a circuit verifies.
+   * Present only when a subject commitment was supplied, because the vector
+   * binds the credential to its holder.
+   */
+  circuitSignature?: {
+    announcement: { x: string; y: string };
+    response: string;
+  } | null;
+  /** The sixteen field elements the circuit signature covers, as decimals. */
+  circuitVector?: string[] | null;
 }
 
 interface SchoolProfileResponse {
@@ -51,6 +62,8 @@ interface SchoolProfileResponse {
   country: string;
   issuerKeyId: string;
   issuerPublicKey: string;
+  /** The JubJub key the on-chain issuer registry holds. */
+  circuitPublicKey: { x: string; y: string };
 }
 
 async function query<T>(
@@ -79,6 +92,19 @@ const SCHOOL_FIELDS = `
   issuerPublicKey
 `;
 
+/**
+ * The JubJub public key the circuit checks issuer signatures against.
+ *
+ * Separate from fetchSchoolProfile because only the proving path needs it, and
+ * every other caller would be paying for a field it ignores.
+ */
+export async function fetchCircuitPublicKey(): Promise<{ x: bigint; y: bigint }> {
+  const { school } = await query<{ school: { circuitPublicKey: { x: string; y: string } } }>(
+    `query CircuitKey { school { circuitPublicKey { x y } } }`
+  );
+  return { x: BigInt(school.circuitPublicKey.x), y: BigInt(school.circuitPublicKey.y) };
+}
+
 /** The institution's public profile, including the key verifiers check against. */
 export async function fetchSchoolProfile(): Promise<School> {
   const { school } = await query<{ school: SchoolProfileResponse }>(
@@ -96,10 +122,20 @@ export async function fetchSchoolProfile(): Promise<School> {
   };
 }
 
-export async function fetchCredential(studentId: string): Promise<SignedCredential> {
+/**
+ * Collects a signed credential.
+ *
+ * `subjectCommitment` is the student's public commitment to a secret only they
+ * hold. Supplying it asks the school for the circuit-facing signature as well;
+ * omitting it returns the conventional credential alone.
+ */
+export async function fetchCredential(
+  studentId: string,
+  subjectCommitment?: string
+): Promise<SignedCredential> {
   const { credential } = await query<{ credential: SignedCredential }>(
-    `query Credential($studentId: ID!) {
-       credential(studentId: $studentId) {
+    `query Credential($studentId: ID!, $subjectCommitment: String) {
+       credential(studentId: $studentId, subjectCommitment: $subjectCommitment) {
          schema
          issuer { schoolId schoolName keyId }
          subject
@@ -107,9 +143,11 @@ export async function fetchCredential(studentId: string): Promise<SignedCredenti
          issuedAt
          expiresAt
          signature
+         circuitVector
+         circuitSignature { announcement { x y } response }
        }
      }`,
-    { studentId }
+    { studentId, subjectCommitment: subjectCommitment ?? null }
   );
 
   if (!credential) throw new Error(`No credential for ${studentId}`);

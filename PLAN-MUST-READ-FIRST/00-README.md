@@ -5,23 +5,40 @@
 > chạm vào một dòng code.
 
 Cập nhật lần cuối: **2026-08-29**
-Trạng thái hiện tại: **Wave 1 — Phase 1 ĐÃ XONG. Sẵn sàng vào Phase 2.**
+Trạng thái hiện tại: **Wave 1 — Phase 1, 2, 3 đã xong phần code.
+Còn lại là việc của chủ dự án.**
 
-**Đã xong:** khối E (School GraphQL — xem file 11), khối A1 (dọn rác),
-và **toàn bộ `12-ui-review.md`** — claim động, verifier tra cứu, student xem proof,
-UI/UX production-ready (§6), **138 test pass** (§7).
+**Đã xong:**
+- **Phase 1** — toàn bộ `12-ui-review.md`: claim động, verifier tra cứu,
+  student xem proof, UI/UX production-ready
+- **Phase 2** — ⛔ **Compact contract compile thành công** (cửa kỹ thuật ĐÃ QUA),
+  40 test circuit đã mutation-test, `MidnightProofProvider` chạy circuit thật
+- **Phase 3** — Dockerfile, docker-compose, `.env.example`, `vercel.json`,
+  README viết lại, DEPLOYMENT.md
 
 **Quyết định 29/08:** Proof Request (G1) **chuyển sang Wave 2** — xem `08-wave2-wave3.md` W2.4.
 
-**Cổng kiểm tra hiện tại — cả ba đều pass:**
+**Cổng kiểm tra — cả bốn đều pass:**
 ```
-npm run build             13 route, không warning, First Load JS 102 kB
-npm test                  138 test / 6 file / ~0.2s
+npm run build             13 route, KHÔNG warning, First Load JS 103 kB
+npm test                  225 test / 11 file / ~0.7s
 npm run check:boundaries  4/4 luật kiến trúc
+npx tsc --noEmit          sạch
 ```
 
-⚠️ **Việc tiếp theo là Phase 2** (`06-phase2-midnight.md`) — Compact contract.
-Đây là **40% điểm và là cửa tử**: không có contract compile được thì bị loại thẳng.
+## ⛔ VIỆC CÒN LẠI TRƯỚC KHI NỘP — chủ dự án phải làm
+
+| Việc | Vì sao |
+|---|---|
+| **Repo để public + gắn topic `midnightntwrk`** | **Thiếu là BỊ LOẠI THẲNG** |
+| Chạy `docker build -t eduproof .` một lần rồi `docker image rm eduproof` | Docker daemon không chạy trên máy nên agent chưa kiểm chứng được. Compose config thì đã kiểm rồi |
+| Slide deck | 10% rubric |
+| Video demo 3–5 phút | cùng 10% đó |
+| Commit | Toàn bộ đang nằm ở working tree |
+
+**Có thể làm thêm nếu còn thời gian** (không bắt buộc, xem `06` §4 kế hoạch dự phòng):
+deploy contract lên preview network → có `NEXT_PUBLIC_CONTRACT_ADDRESS`, đọc
+issuer registry từ chain, nối ví Lace.
 
 ⚠️ **Môi trường đã đổi:** giờ làm trên máy Mac
 (`/Users/trinhbach/Workspace/working/eduproof/EduProof`), không phải server Linux
@@ -39,8 +56,8 @@ npm run check:boundaries  4/4 luật kiến trúc
 | `03-architecture.md` | Kiến trúc, ranh giới module, quy tắc bất di bất dịch | Trước khi viết code |
 | `04-current-state.md` | Repo hiện có gì, chạy thế nào, còn nợ gì | Khi bắt đầu một phiên làm việc mới |
 | `05-phase1-mock-ui.md` | Kế hoạch chi tiết Phase 1 — **đã xong** | Tham khảo |
-| `06-phase2-midnight.md` | **Kế hoạch Phase 2 — Compact contract** | **Ngay bây giờ** |
-| `07-phase3-deployment.md` | Kế hoạch Phase 3 — Docker, env, hướng dẫn | Sau khi Phase 2 xong |
+| `06-phase2-midnight.md` | Phase 2 — Compact contract — **đã xong phần bắt buộc** | Tham khảo; xem §5.1 kết quả kiểm chứng proof server |
+| `07-phase3-deployment.md` | Phase 3 — Docker, env, hướng dẫn — **đã xong phần code** | Xem Definition of Done: còn slide/video/repo public |
 | `08-wave2-wave3.md` | Định hướng Wave 2 và Wave 3 | Khi lập kế hoạch Wave sau |
 | `09-conventions.md` | Quy ước code, đặt tên, ngôn ngữ, quy trình làm việc | Trước mỗi PR |
 | `10-open-questions.md` | Câu hỏi còn treo, cần chủ dự án quyết | Khi bí |

@@ -61,3 +61,59 @@ export function issuerPublicKey(): string {
 export function signCanonical(canonical: string): string {
   return signBytes(null, Buffer.from(canonical, "utf8"), keys().privateKey).toString("base64");
 }
+
+// --- Circuit signing key -------------------------------------------------
+//
+// A second keypair, and it has to be a second one: the credential JSON is
+// signed with Ed25519, which a ZK circuit cannot verify cheaply, while the
+// circuit verifies a Schnorr signature over the JubJub curve — the curve its
+// own arithmetic is built on. Same school, same credential, two signatures
+// over two representations of it.
+//
+// The JSON signature is what a conventional integrator checks. The JubJub
+// signature is what the circuit checks. Neither replaces the other.
+
+/**
+ * The JubJub signing scalar, derived from the configured Ed25519 key.
+ *
+ * Derived rather than configured separately so a school still manages exactly
+ * one secret. Reducing the hash into the scalar field keeps it a valid key.
+ */
+export async function circuitSigningKey(): Promise<bigint> {
+  const { createHash } = await import("node:crypto");
+  const { JUBJUB_SCALAR_MODULUS } = await import("@midnight-ntwrk/compact-runtime");
+
+  const seed = process.env.SCHOOL_SIGNING_KEY ?? issuerPublicKey();
+  const digest = createHash("sha512").update(`eduproof/jubjub/v1:${seed}`).digest("hex");
+  return (BigInt(`0x${digest}`) % (JUBJUB_SCALAR_MODULUS - 1n)) + 1n;
+}
+
+/** The public half, as the on-chain issuer registry holds it. */
+export async function circuitPublicKey(): Promise<{ x: bigint; y: bigint }> {
+  const { jubjubSchnorrVerifyingKey } = await import("@midnight-ntwrk/compact-runtime");
+  const pk = jubjubSchnorrVerifyingKey(await circuitSigningKey());
+  return { x: pk.x, y: pk.y };
+}
+
+/**
+ * Signs the canonical field vector — the message the circuit reads.
+ *
+ * The vector, not the JSON: a circuit has no parser, so what it verifies is
+ * the sixteen integers themselves.
+ */
+export async function signFieldVector(
+  vector: bigint[]
+): Promise<{ announcement: { x: bigint; y: bigint }; response: bigint }> {
+  const { CompactTypeField, CompactTypeVector, jubjubSchnorrSign } = await import(
+    "@midnight-ntwrk/compact-runtime"
+  );
+  const sig = jubjubSchnorrSign(
+    new CompactTypeVector(vector.length, CompactTypeField),
+    vector,
+    await circuitSigningKey()
+  );
+  return {
+    announcement: { x: sig.announcement.x, y: sig.announcement.y },
+    response: sig.response,
+  };
+}

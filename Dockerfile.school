@@ -1,0 +1,28 @@
+# The school's GraphQL service, on its own.
+#
+# Exists to make the vendor boundary real rather than asserted: in this image
+# the school is a different process, on a different port, that EduProof reaches
+# over the network and cannot import from.
+#
+# TypeScript runs directly through Node's type stripping, so there is no build
+# step — see PLAN-MUST-READ-FIRST/11-school-vendor-contract.md (Q12).
+
+FROM node:22-alpine
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Only what the school itself needs. Nothing from lib/proof, which is the
+# boundary this image is here to demonstrate.
+COPY mock-school-api ./mock-school-api
+COPY lib/school ./lib/school
+COPY data ./data
+
+RUN addgroup -g 1001 -S nodejs && adduser -S -u 1001 -G nodejs school
+USER school
+
+ENV PORT=4000
+EXPOSE 4000
+
+CMD ["node", "--experimental-strip-types", "mock-school-api/server.mjs"]

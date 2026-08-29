@@ -8,6 +8,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+
+    // Two suites: the app's own logic, and the circuit driven through the
+    // Compact simulator. Same runner so `npm test` covers both.
+    include: ["tests/**/*.test.ts", "contracts/tests/**/*.test.ts"],
   },
 });

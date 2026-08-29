@@ -43,8 +43,9 @@ Nếu file đã nằm trong commit → **là công việc có chủ đích, khô
 ### Trước khi commit
 
 ```bash
-npm test                  # 138 test, ~0.2s — chạy trước vì nhanh nhất
+npm test                  # 227 test, ~0.7s — chạy trước vì nhanh nhất
 npm run check:boundaries  # 4 luật ranh giới kiến trúc
+npx tsc --noEmit          # phải sạch
 npm run build             # phải pass — nhớ kill dev server trước
 ```
 
@@ -53,8 +54,14 @@ npm run build             # phải pass — nhớ kill dev server trước
 ### Chạy dev
 ```bash
 cd /Users/trinhbach/Workspace/working/eduproof/EduProof   # máy Mac hiện tại
-npm run dev                  # local
+npm run dev                  # local, chế độ mock (mặc định)
 npm run dev -- -H 0.0.0.0    # cho truy cập từ ngoài
+
+# Chạy với circuit thật:
+NEXT_PUBLIC_PROOF_PROVIDER=midnight npm run dev
+
+# Build lại contract (cần Compact toolchain 0.34.0):
+npm run contract:build
 ```
 
 ⚠️ Cần `.env.local` (xem `.env.example`). Thiếu `SCHOOL_SIGNING_KEY` thì trường sinh

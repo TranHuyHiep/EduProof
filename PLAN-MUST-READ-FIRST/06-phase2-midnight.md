@@ -13,11 +13,10 @@ mọi công sức Phase 1 thành 0 điểm. Rubric cũng dành **40%** cho phầ
 
 ## 0. Điều kiện tiên quyết
 
-- [ ] Phase 1 đã đạt Definition of Done
-- [ ] `unzip` đã cài (nếu không, lệnh cài toolchain báo
-      "Failed to spawn artifact extraction command")
-- [ ] Docker chạy được (cho proof server)
-- [ ] Compact compiler `0.34.0` — đã kiểm chứng hoạt động ở phiên trước
+- [x] Phase 1 đã đạt Definition of Done
+- [x] `unzip` đã cài
+- [x] Docker chạy được (Docker 29.6.2) — **không cần dùng**, xem §5.1
+- [x] Compact compiler `0.34.0` — đã cài trên máy Mac (29/08)
 
 ---
 
@@ -108,36 +107,61 @@ không chỉ là circuit thuần — rubric ghi rõ *"includes private-state man
 
 ## 3. Các bước triển khai
 
-### Bước 1 — Dựng lại toolchain
-- [ ] Cài Compact compiler `0.34.0`
-- [ ] `contracts/` với `compact.toml`
-- [ ] Script build ra `contracts/build/` (artifact **được commit**, xem §5 Vercel)
-- [ ] Khôi phục contract cũ để tham khảo: `git checkout f03532c -- contracts/`
-      (chỉ tham khảo — thiết kế mới theo §1.2)
+### Bước 1 — Dựng lại toolchain ✅
+- [x] Cài Compact compiler `0.34.0`
+- [x] `contracts/src/` + `contracts/tests/`. **Không cần `compact.toml`** —
+      compiler nhận thẳng `compact compile <src> <out>`
+- [x] `npm run contract:build` → `contracts/build/` (artifact **được commit**)
+- [x] Đã đọc contract cũ ở `f03532c` để tham khảo; thiết kế mới theo §1.2
 
-### Bước 2 — Contract
-- [ ] Viết `EduProof.compact` theo thiết kế §1.2
-- [ ] Circuit `registerIssuer` — trường đăng ký public key lên public ledger
-- [ ] Circuit `proveCredentialPredicate` — circuit chính
-- [ ] Compile thành công ⛔ **cửa kỹ thuật**
-- [ ] Cam kết compile artifact vào repo
+### Bước 2 — Contract ✅
+- [x] `contracts/src/eduproof.compact` theo thiết kế §1.2 — **một** circuit tổng quát
+- [x] Circuit `registerIssuer` — ledger `issuers: Map<Field, JubjubPoint>`
+- [x] Circuit `proveCredentialPredicate` — circuit chính
+- [x] ⛔ **Compile thành công** — cửa kỹ thuật ĐÃ QUA (compile đầy đủ ~5s,
+      sinh prover + verifier key cho cả 2 circuit)
+- [x] Artifact đã commit (`contracts/build/`, 788K)
+- [x] **Private state thật**: `witness studentSecretKey(): Field` → generated type
+      có `Witnesses<PS>` + `WitnessContext`, đúng yêu cầu rubric
 
-### Bước 3 — Test contract (15% rubric)
-- [ ] `contracts/tests/` — simulator chạy circuit
-- [ ] Case đạt: GPA 3.72 với `gpa >= 350` → true
-- [ ] Case không đạt: GPA 2.91 với `gpa >= 350` → false
-- [ ] Case xấu: chữ ký sai → circuit **từ chối**
-- [ ] Case xấu: sai `studentSk` → circuit **từ chối**
-- [ ] Toàn bộ operator × toàn bộ thuộc tính
+### Bước 3 — Test contract (15% rubric) ✅ — 40 test
+- [x] `contracts/tests/simulator.ts` — chạy circuit qua Compact runtime
+- [x] Case đạt / không đạt trên GPA
+- [x] Case xấu: chữ ký sai, credential bị sửa, tự ký lại → **từ chối**
+- [x] Case xấu: sai `studentSk`, credential của người khác → **từ chối**
+- [x] Case xấu: issuer chưa đăng ký, issuer slot bị đổi → **từ chối**
+- [x] Toàn bộ 6 operator × toàn bộ slot
 
-### Bước 4 — MidnightProofProvider
-- [ ] `lib/proof/midnight-provider.ts` cài `ProofProvider` (interface **không đổi**)
-- [ ] Sinh proof **client-side** (xem `03-architecture.md` §6)
-- [ ] Kết nối proof server local `localhost:6300`
-- [ ] Đổi **một dòng** trong `lib/proof/index.ts`
-- [ ] Giữ mock provider, chọn qua env → demo vẫn chạy khi không có proof server
+> **Kiểm chứng test có thật sự bắt lỗi** (mutation testing, 29/08). Bốn đột biến
+> vào contract, mỗi lần compile lại rồi chạy test, sau đó khôi phục nguyên trạng:
+>
+> | Đột biến | Test đỏ |
+> |---|---|
+> | Bỏ `assert` chữ ký issuer | 6 |
+> | Bỏ `assert` quyền sở hữu | 2 |
+> | `>=` thành `>` | 2 |
+> | `selectSlot` luôn trả slot 0 | 13 |
+>
+> Khôi phục xong: `diff` xác nhận source y hệt, 40/40 xanh lại.
 
-### Bước 5 — Kết nối preview network
+### Bước 4 — MidnightProofProvider ✅
+- [x] `lib/proof/midnight-provider.ts` cài `ProofProvider` — interface **không đổi**
+- [x] Chạy **client-side**: runtime WASM nạp qua dynamic import
+- [x] **Không cần** proof server local — CORS mở, xem §5.1
+- [x] `lib/proof/index.ts` chọn provider qua `NEXT_PUBLIC_PROOF_PROVIDER`
+- [x] Mock vẫn là **mặc định** → `npm i && npm run dev` chạy được ngay, không cần toolchain
+
+Kèm theo, các mảnh phải có để provider chạy thật:
+- [x] `lib/school/circuit-vector.ts` — canonical field vector (thuộc về **trường**,
+      là một phần đặc tả tích hợp công khai)
+- [x] `lib/school/keys.ts` — thêm khoá ký **JubJub Schnorr**, dẫn xuất từ
+      `SCHOOL_SIGNING_KEY` nên trường vẫn chỉ giữ **một** bí mật
+- [x] Schema GraphQL mở rộng **cộng thêm, không phá vỡ**: `circuitPublicKey`,
+      `circuitSignature`, `circuitVector`, tham số `subjectCommitment`
+- [x] `lib/midnight/encoding.ts` — mã operator khớp enum trong contract
+- [x] `lib/midnight/local-runner.ts` — chạy circuit trong browser
+
+### Bước 5 — Kết nối preview network ⚠️ CHƯA LÀM
 - RPC: `https://rpc.preview.midnight.network` (đã kiểm chứng, trả "Midnight Preview")
 - Indexer: `https://indexer.preview.midnight.network/api/v3/graphql`
 - Proof server: **ưu tiên dùng của bên ngoài** (xem §5.1)
@@ -146,13 +170,13 @@ không chỉ là circuit thuần — rubric ghi rõ *"includes private-state man
 - [ ] Trường đăng ký issuer key lên chain
 - [ ] Verifier đọc issuer key **từ chain**, không từ file JSON
 
-### Bước 6 — Xác thực ví (Lace)
+### Bước 6 — Xác thực ví (Lace) ⚠️ CHƯA LÀM
 - [ ] Thay demo fallback bằng ví Midnight thật
 - [ ] Giữ demo fallback sau một cờ env → giám khảo không có ví vẫn test được
 - [ ] ⚠️ **Chứng minh quyền sở hữu ví bằng chữ ký là việc của Wave 2**, không phải ở đây.
       Phase này chỉ cần *kết nối* + lấy địa chỉ
 
-### Bước 7 — Truy vấn on-chain
+### Bước 7 — Truy vấn on-chain ⚠️ CHƯA LÀM
 - [ ] Danh sách proof của sinh viên: query từ chain, thay cho localStorage
       (chính là `ChainProofStore` cắm vào interface `ProofStore` ở Phase 1)
 - [ ] Verifier tra proof theo commitment on-chain
@@ -200,7 +224,21 @@ functional end-to-end experience"* mà không bắt ai setup.
       runtime `0.19.0`. Lệch phiên bản là hỏng
 - [ ] **Giới hạn tần suất / độ trễ** — đo thời gian sinh proof thực tế
 
-Ghi kết quả kiểm chứng vào file này khi có.
+### ✅ KẾT QUẢ KIỂM CHỨNG (29/08/2026) — dùng được, không cần proxy
+
+| Điều cần xác nhận | Kết quả |
+|---|---|
+| Endpoint có sống không | ✅ `GET /health` → `200 {"status":"ok"}`, ~0.7s |
+| **CORS** | ✅ **Mở hoàn toàn.** Preflight trả `access-control-allow-origin` phản chiếu đúng Origin gửi lên, `allow-methods` gồm mọi method. Browser gọi thẳng được → **KHÔNG cần proxy** |
+| Khớp phiên bản | ✅ proof server `8.1.0`; compiler `0.34.0` → language `0.26.0`, runtime `0.19.0`, ledger `9.1.0.0-rc.3` |
+| Độ trễ | Health ~0.7s. Chưa đo thời gian sinh proof thật (chưa deploy contract) |
+
+Ngoài ra: RPC `https://rpc.preview.midnight.network` trả `"Midnight Preview"` — sống.
+
+> **Hệ quả quan trọng cho quyền riêng tư:** vì CORS mở, ta **không phải** viết proxy.
+> Đây là điều tốt: proxy của ta sẽ nhìn thấy witness, đúng thứ mà thiết kế từ chối
+> (xem §5.2 hướng 1). Đánh đổi còn lại — bản thân proof server **có** thấy witness —
+> vẫn phải nói rõ trong README và slide.
 
 ### 5.2 Nếu bị chặn CORS
 
@@ -233,10 +271,34 @@ Ghi kết quả kiểm chứng vào file này khi có.
 
 ## Definition of Done cho Phase 2
 
-- [ ] ⛔ Compact contract **compile thành công**
-- [ ] Test contract pass, có cả case xấu
-- [ ] Sinh + xác thực proof chạy được với ZK thật ở local
+- [x] ⛔ Compact contract **compile thành công** — cửa kỹ thuật đã qua
+- [x] Test contract pass, có cả case xấu — 40 test, đã mutation-test
+- [x] Sinh + xác thực proof chạy được với **circuit thật** ở local
 - [ ] Contract đã deploy lên preview network, có địa chỉ ghi lại
-- [ ] Giao dịch với preview network ổn định (chạy lặp lại nhiều lần không hỏng)
-- [ ] UI không đổi hình dạng khi đổi provider (interface giữ nguyên)
-- [ ] README có mục kiến trúc Midnight + bảng dual-ledger
+- [ ] Giao dịch với preview network ổn định
+- [x] UI không đổi hình dạng khi đổi provider (interface giữ nguyên)
+- [x] README có mục kiến trúc Midnight + bảng dual-ledger
+
+### ⚠️ Ranh giới trung thực: cái gì thật, cái gì chưa
+
+Phải nói đúng chỗ này trong README, slide và video — nói quá là tự bắn vào chân
+khi giám khảo kiểm tra.
+
+**Thật:**
+- Contract compile được, có prover/verifier key, artifact commit trong repo
+- Circuit chạy thật khi `NEXT_PUBLIC_PROOF_PROVIDER=midnight`: kết quả mỗi claim
+  là **verdict của circuit**, và circuit **từ chối chạy** nếu chữ ký trường sai
+  hoặc người gọi không giữ bí mật sau subject commitment
+- Trường ký thật bằng JubJub Schnorr trên field vector
+- Giá trị riêng tư nằm trong witness, không bao giờ vào `Proof`
+
+**Chưa:**
+- Chưa deploy contract lên preview network → chưa có `NEXT_PUBLIC_CONTRACT_ADDRESS`
+- Chưa gửi transaction, chưa sinh ZK proof qua proof server ngoài (mới chỉ kiểm
+  chứng endpoint sống + CORS mở)
+- Issuer registry đang dựng trong bộ nhớ mỗi phiên, chưa đọc từ chain
+- Chưa nối ví Lace thật
+
+Các việc chưa làm đều nằm ở mục 2–5 của **kế hoạch dự phòng** §4 — tức là những
+thứ được phép cắt. Mục 1 (*"Contract compile được + test pass — không bao giờ cắt"*)
+**đã đạt**.

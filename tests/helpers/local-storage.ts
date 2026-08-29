@@ -41,7 +41,13 @@ class MemoryStorage implements Storage {
 export function installMemoryLocalStorage(): Storage {
   const storage = new MemoryStorage();
   const scope = globalThis as { window?: unknown };
-  scope.window = { localStorage: storage };
+
+  // `window` needs `crypto` as well as storage. wasm-bindgen looks for a
+  // global in the order window → self → globalThis and stops at the first one
+  // it finds, so defining a bare `{ localStorage }` hid node's real crypto
+  // from the Midnight runtime. It reported that as an opaque WASM trap
+  // ("unreachable") from inside signature generation, naming nothing.
+  scope.window = { localStorage: storage, crypto: globalThis.crypto };
   (globalThis as { localStorage?: Storage }).localStorage = storage;
   return storage;
 }

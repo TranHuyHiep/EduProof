@@ -1,0 +1,64 @@
+# The full local stack.
+#
+# `docker compose up` — no -d in the documented command, and no
+# `restart: always`, so nothing here outlives the terminal that started it.
+#
+# Runs the honest architecture, which the single-Vercel-deployment demo cannot:
+# the school is a separate service on its own port, so the boundary between the
+# institution and EduProof is a network hop rather than a promise.
+
+services:
+  # The school. A separate vendor, and modelled as one.
+  school:
+    build:
+      context: .
+      dockerfile: Dockerfile.school
+    environment:
+      # REQUIRED. Generate with `npm run school:genkey` and put the matching
+      # public key in data/schools.json. Without it the school issues
+      # credentials under an ephemeral key that stops verifying on restart.
+      SCHOOL_SIGNING_KEY: ${SCHOOL_SIGNING_KEY:?set SCHOOL_SIGNING_KEY in .env}
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4000/graphql',{method:'POST',headers:{'content-type':'application/json'},body:'{\"query\":\"{__typename}\"}'}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      args:
+        # Baked in at build time: Next inlines NEXT_PUBLIC_* into the bundle.
+        # The browser reaches the school on localhost, not on the compose
+        # network — this URL is resolved by the user's browser, not by the app
+        # container.
+        NEXT_PUBLIC_SCHOOL_API: http://localhost:4000/graphql
+        NEXT_PUBLIC_PROOF_PROVIDER: ${NEXT_PUBLIC_PROOF_PROVIDER:-mock}
+        NEXT_PUBLIC_PROOF_SERVER: ${NEXT_PUBLIC_PROOF_SERVER:-https://proof-server.preprod.midnight.network}
+        NEXT_PUBLIC_CONTRACT_ADDRESS: ${NEXT_PUBLIC_CONTRACT_ADDRESS:-}
+    environment:
+      SCHOOL_SIGNING_KEY: ${SCHOOL_SIGNING_KEY:?set SCHOOL_SIGNING_KEY in .env}
+    ports:
+      - "3000:3000"
+    depends_on:
+      school:
+        condition: service_healthy
+
+# The proof server is deliberately NOT here.
+#
+# The hosted one at proof-server.preprod.midnight.network answers with
+# permissive CORS, so the browser calls it directly and the demo needs no
+# Docker image for it. To run one locally instead — which is what a real
+# deployment should do, since a proof server sees the witness:
+#
+#   docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.0.3
+#
+# then rebuild with NEXT_PUBLIC_PROOF_SERVER=http://localhost:6300.
