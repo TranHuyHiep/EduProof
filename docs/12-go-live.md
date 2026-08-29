@@ -9,59 +9,40 @@ Link và endpoint: [23-references.md](23-references.md).
 
 ---
 
-## Trạng thái xuất phát
+## Trạng thái
 
-| Thứ | Tình trạng |
+| Bước | Tình trạng |
 |---|---|
-| Circuit Compact, ledger 8 | xong, 238 test xanh |
-| App đọc ledger on-chain | xong (`lib/midnight/chain.ts`) |
-| Contract trên preprod | **đang deploy** |
-| Registry issuer trên chain | **rỗng — xem Bước 2** |
+| 0 — Deploy | ✅ **xong** — `89975419a1a887b6f4d74d91…` |
+| 1 — Đặt biến env | ✅ **xong** — indexer đã xác nhận |
+| 2 — Đăng ký issuer | ⏳ **đang chạy** (sync ~2.5 giờ) |
+| 3 — Chạy thử end-to-end | chờ bước 2 |
+| 4 — Cập nhật tài liệu | ✅ xong |
+| 5 — Chốt cổng chất lượng | chờ bước 3 |
 
 ---
 
-## Bước 0 — Deploy xong
+## Bước 0 — Deploy ✅
 
-Script tự in địa chỉ. Nếu hỏng, đọc lỗi thật (giờ handler in cả `cause`,
-`code`, `data`), đối chiếu bảng mã ở [22-lessons.md](22-lessons.md) mục 6.
-
-```bash
-tail -f <log>          # theo dõi
+```
+contract  89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
+tx        0039095faf9e17c65fe65e86ffac18a08a8c0a331d9755a9b6bd81ccf6da5cae64
 ```
 
-**Kiểm chứng:** có dòng `✓ deployed` kèm địa chỉ 64 ký tự hex.
+Mất 158 phút, gần hết là sync ví. Bản thân việc deploy dưới một phút.
 
----
-
-## Bước 1 — Đặt biến môi trường
-
-Vào `.env.local`, **cả hai dòng**:
+## Bước 1 — Biến môi trường ✅
 
 ```bash
 NEXT_PUBLIC_PROOF_PROVIDER=midnight
-NEXT_PUBLIC_CONTRACT_ADDRESS=<địa chỉ vừa in>
+NEXT_PUBLIC_CONTRACT_ADDRESS=89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
 ```
 
-Thiếu dòng đầu là lỗi dễ mắc nhất: contract nằm trên chain nhưng app vẫn chạy
-mock, nên mọi công deploy trở nên vô hình.
+`npm run contract:verify` báo *"indexer confirms a contract at this address
+(ContractDeploy)"* — bằng chứng độc lập, không phải lời script deploy tự nói.
 
-**Kiểm chứng:**
-
-```bash
-npm run contract:verify
-```
-
-Script hỏi **indexer** xem chain có contract ở địa chỉ đó thật không — không
-tin vào output của deploy script. Phải thấy:
-
-```
-✓ address …
-✓ NEXT_PUBLIC_PROOF_PROVIDER=midnight
-✓ indexer confirms a contract at this address
-```
-
-Nếu báo *"indexer has no contract"*: đợi vài block rồi chạy lại. Indexer trễ
-là bình thường ngay sau deploy.
+Điều này quan trọng vì tiến trình deploy chạy bản code **cũ**, chưa có kiểm tra
+`TxStatus`. Nó sẽ in `✓ deployed` kể cả khi transaction rơi vào `FailFallible`.
 
 ---
 

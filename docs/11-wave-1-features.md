@@ -81,6 +81,40 @@ GPA lưu ×100 (3.72 → 372) vì circuit không có số thực.
 
 Đặc tả đầy đủ: [31-school-integration.md](31-school-integration.md).
 
+## Chạy thật trên chain
+
+Contract đã deploy lên preprod:
+
+```
+89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
+```
+
+[Xem trên explorer](https://preprod.midnightexplorer.com/contracts/0x89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729)
+
+Lúc xác minh một proof, trang verify **đọc ledger của contract** thay vì tự
+khẳng định:
+
+| Đọc được | Nghĩa là |
+|---|---|
+| `issuers` | khoá trường nằm trong registry on-chain, không phải file JSON của app |
+| `proofsVerified` | số mệnh đề contract đã kiểm — khác 0 nghĩa là contract được dùng thật |
+
+Chỉ số liệu **tổng hợp**, không có gì theo từng proof. Thêm một chỉ mục hay
+nullifier là hai proof của cùng một người liên kết được — có test khoá điều đó
+(`tests/on-chain-state.test.ts`), và test đã được kiểm chứng bằng cách cố tình
+thêm một trường vào để xem nó đỏ.
+
+Chain không với tới được thì proof **vẫn hợp lệ**, và trang nói rõ nửa công
+khai đang không đọc được. Kết luận là của circuit, không phụ thuộc indexer.
+
+Kiểm chứng độc lập:
+
+```bash
+npm run contract:verify
+```
+
+---
+
 ## Riêng tư — cái không lộ
 
 Điều quan trọng nhất là **proof thất bại cũng không lộ gì**. Nếu GPA của Bob là
@@ -102,7 +136,8 @@ field nào chứa được giá trị thật.
 ## Chưa có ở Wave 1
 
 - Link proof chỉ mở được trên thiết bị đã tạo (chưa có server store).
-- Danh bạ issuer dựng trong bộ nhớ mỗi phiên, chưa đọc từ chain.
 - Chưa kết nối ví Lace.
+- Proof không tự nộp lên chain: circuit chạy local, còn chain thì **đọc**,
+  không ghi, lúc xác minh.
 - Chưa có xác thực nhân viên phòng đào tạo — endpoint trả về đúng thứ EduProof
   sinh ra để bảo vệ. Ghi rõ ở đây thay vì lặng lẽ bỏ qua.
