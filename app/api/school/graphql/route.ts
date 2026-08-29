@@ -7,7 +7,7 @@
 //
 //  It is hosted here only so the public demo runs as a single deployment.
 //  The Docker Compose setup runs it as a separate service, which is the
-//  honest picture — see PLAN-MUST-READ-FIRST/11-school-vendor-contract.md.
+//  honest picture — see docs/school-vendor-contract.md.
 //
 //  HARD RULE: nothing under app/api/school/ may import from lib/proof/.
 //  A school knows nothing about EduProof's proof system. Blurring the

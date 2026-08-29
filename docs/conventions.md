@@ -6,7 +6,7 @@
 |---|---|
 | Trao đổi với chủ dự án | **Tiếng Việt** |
 | Kế hoạch, câu hỏi, báo cáo | **Tiếng Việt** |
-| Tài liệu trong `PLAN-MUST-READ-FIRST/` | **Tiếng Việt** |
+| Tài liệu trong `docs/` | **Tiếng Việt** |
 | Chữ hiển thị trên UI | **Tiếng Anh** (đối tượng quốc tế, giám khảo đọc tiếng Anh) |
 | Comment trong code | **Tiếng Anh** |
 | Tên biến, tên hàm | **Tiếng Anh** |
@@ -26,10 +26,10 @@
 
 ### Trước khi code
 
-1. Đọc `PLAN-MUST-READ-FIRST/`
+1. Đọc `docs/`
 2. Xác nhận đang ở **đúng Phase** — không nhảy trước
 3. **Lập kế hoạch trước, chỉ code khi chủ dự án đồng ý.** Đây là yêu cầu tường minh.
-4. Nghi ngờ chỗ nào → hỏi. Ghi câu hỏi vào `10-open-questions.md`
+4. Nghi ngờ chỗ nào → hỏi chủ dự án, đừng tự đoán
 
 ### Trước khi xoá bất kỳ file nào
 
@@ -43,7 +43,7 @@ Nếu file đã nằm trong commit → **là công việc có chủ đích, khô
 ### Trước khi commit
 
 ```bash
-npm test                  # 227 test, ~0.7s — chạy trước vì nhanh nhất
+npm test                  # 231 test, ~0.8s — chạy trước vì nhanh nhất
 npm run check:boundaries  # 4 luật ranh giới kiến trúc
 npx tsc --noEmit          # phải sạch
 npm run build             # phải pass — nhớ kill dev server trước
@@ -60,7 +60,7 @@ npm run dev -- -H 0.0.0.0    # cho truy cập từ ngoài
 # Chạy với circuit thật:
 NEXT_PUBLIC_PROOF_PROVIDER=midnight npm run dev
 
-# Build lại contract (cần Compact toolchain 0.34.0):
+# Build lại contract (cần Compact toolchain 0.31.1 — ledger 8, xem lessons.md):
 npm run contract:build
 ```
 
@@ -107,10 +107,37 @@ code lạc scope.
 - **Không tự kill phiên khác của người dùng** — đó là quyết định của họ, chỉ báo lên
 - Nếu thấy code lạc scope, **hỏi trước khi xoá**
 
-## 7. Cái gì KHÔNG BAO GIỜ được vi phạm
+## 7. Thẩm mỹ giao diện
+
+Rút ra từ đợt review UI cuối Phase 1. Vấn đề khi đó: giao diện "trông như AI làm".
+Nguyên nhân cụ thể, và cách tránh lặp lại:
+
+| Dấu hiệu | Vì sao đọc ra "AI" |
+|---|---|
+| Emoji làm icon | Dấu hiệu rõ nhất. Sản phẩm thật dùng bộ icon nhất quán |
+| Thẻ trắng bo góc xếp dọc, cách đều | Bố cục mặc định, không có phân cấp thị giác |
+| Mọi thứ căn giữa | An toàn tới mức vô danh |
+| Chữ đều một cỡ, một màu xám | Mắt không biết nhìn đâu trước |
+
+**Không** làm: gradient tím, glow, glassmorphism, animation nảy, minh hoạ 3D.
+Vừa sai tông fintech, vừa lại là một kiểu "AI" khác.
+
+**Nên** làm:
+
+1. Icon SVG nhất quán, không emoji — thay đổi đơn lẻ có tác động lớn nhất.
+2. Một chi tiết ký tự riêng. Ở đây là **con dấu niêm phong văn bằng** trên trang
+   verify: vòng tròn viền mảnh, chữ chạy quanh, số hiệu proof ở giữa. Ngôn ngữ
+   của bằng cấp và công chứng, không phải của ví tiền số.
+3. Phân cấp chữ rõ: số liệu lớn và đậm, nhãn nhỏ viết hoa thưa chữ, phụ thì nhạt hẳn.
+4. Phá thế "mọi thứ là thẻ trắng": kết quả verify nằm trên nền có màu, claim
+   builder là một khối liền, landing lệch trái thay vì căn giữa.
+
+---
+
+## 8. Cái gì KHÔNG BAO GIỜ được vi phạm
 
 1. Không có giá trị riêng tư nào trong kiểu `Proof`
-2. Không tự deploy ở Phase 3
+2. Không tự deploy khi chưa được cho phép — hỏi trước, mỗi lần
 3. Không đụng service khác trên server này
-4. Không viết code Midnight khi còn ở Phase 1
+4. Không nhảy Phase — làm xong phần đang dở rồi mới sang phần sau
 5. Không dùng DB ngoài ở Wave 1

@@ -35,16 +35,19 @@ miễn là mỗi lần nộp chứng minh được **tiến bộ mới có thự
 
 Bài nộp **bị loại thẳng, không được chấm** nếu thiếu bất kỳ điều nào:
 
-- [ ] Có **ít nhất 1 Compact contract compile thành công**
-- [ ] Có **chức năng liên quan Midnight thực sự có ý nghĩa** (không phải cho có)
-- [ ] **Không** là bản fork/copy/sửa hời hợt của dự án có sẵn
-- [ ] Repo GitHub **public** và gắn **topic `midnightntwrk`**
-- [ ] Có **slide deck**
-- [ ] Có **demo video / video pitch**
-- [ ] Code liên quan Midnight ở **Apache License 2.0**
+- [x] Có **ít nhất 1 Compact contract compile thành công** — `contracts/src/eduproof.compact`
+- [x] Có **chức năng liên quan Midnight thực sự có ý nghĩa** — circuit quyết định kết quả mệnh đề, không phải trang trí
+- [x] **Không** là bản fork/copy/sửa hời hợt
+- [ ] Repo GitHub **public** và gắn **topic `midnightntwrk`** ← **việc của chủ dự án**
+- [ ] Có **slide deck** ← **việc của chủ dự án**
+- [ ] Có **demo video / video pitch** ← **việc của chủ dự án**
+- [x] Code liên quan Midnight ở **Apache License 2.0** — `LICENSE` + `package.json`
 
-> **Đây là lý do Phase 2 không được phép cắt.** Một Phase 1 đẹp long lanh mà không có
-> Compact contract = 0 điểm.
+Ba ô còn trống ở trên là toàn bộ thứ đang chặn bài nộp. Xem
+[wave-1-plan.md](wave-1-plan.md).
+
+> Cửa kỹ thuật là lý do phần Midnight không được phép cắt: một UI đẹp long lanh
+> mà không có Compact contract = 0 điểm.
 
 ---
 
@@ -54,7 +57,7 @@ Bài nộp **bị loại thẳng, không được chấm** nếu thiếu bất k
 |---|---|---|---|
 | **Engineering & Implementation** | **40%** | Compact contract compile được; có **quản lý private state**; hiểu **mô hình dual-ledger** của Midnight; repo tổ chức tốt; README rõ; gắn topic; ghi nhận hệ sinh thái | Phase 2 |
 | **Quality Assurance & Reliability** | **15%** | Có **file simulation/test**; test **pass**; sản phẩm chạy ổn định ở thao tác cơ bản | Phase 1 (test logic claim) + Phase 2 (test circuit) |
-| **Product & Vision** | **15%** | Ý tưởng mạnh; gắn với năng lực lõi của Midnight; scope và roadmap **thực tế** | `02-product.md` + roadmap Wave 2/3 |
+| **Product & Vision** | **15%** | Ý tưởng mạnh; gắn với năng lực lõi của Midnight; scope và roadmap **thực tế** | `../business.md` + `08-wave2-wave3.md` |
 | **User Experience & Design** | **15%** | Frontend trực quan, hoạt động đúng kỳ vọng, **nối được với contract** thành luồng end-to-end | Phase 1 + Phase 2 |
 | **Communication** | **10%** | Video và slide rõ ràng, có cấu trúc | Cuối Wave 1 |
 | **Business Development & Viability** | **5%** | Hiểu đối tượng người dùng, tiềm năng thị trường, lộ trình tiếp cận | `business.md` (đã có) |
@@ -114,5 +117,5 @@ Ghi ở đây vì chúng có hiệu lực ngang thể lệ đối với dự án
    - không process nền chạy dài
    - không tính toán nặng ở server-side render
    - build phải nhẹ
-   - cẩn thận với thư viện Midnight WASM ở phía server (xem `06-phase2-midnight.md` §Vercel)
-4. **Phase 3 tuyệt đối không tự deploy** và không đụng service khác trên server hiện tại.
+   - cẩn thận với thư viện Midnight WASM ở phía server (xem `deployment.md`)
+4. **Không tự ý deploy hay đụng vào thứ ngoài phạm vi project** — hỏi chủ dự án trước, mỗi lần.

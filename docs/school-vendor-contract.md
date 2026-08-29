@@ -29,7 +29,12 @@ Wave 3 dự kiến làm "cổng tích hợp cho trường" — schema này chín
 
 ---
 
-## 2. Vấn đề trong bản hiện tại (phải sửa ở Phase 1)
+## 2. Những vấn đề đã phát hiện và đã sửa
+
+> **Đã xử lý hết ở Wave 1.** Giữ lại phần này vì nó ghi *vì sao* schema có hình
+> dạng hiện tại — `gpaScaled: Int!` chứ không phải `gpa: Float`, khoá issuer đọc
+> từ registry chứ không đọc từ credential. Sửa lại những chỗ đó là làm hỏng
+> đặc tả công khai.
 
 ### ⚠️ P1 — Không phải GraphQL thật
 
@@ -78,7 +83,7 @@ registry (Phase 1: `schools.json`; Phase 2: on-chain), **không** đọc từ cr
 Trang `/school` cần thế, và về mặt logic thì hợp lý (trường xem dữ liệu của chính trường).
 Nhưng như một API công khai thì đây là endpoint rò rỉ hàng loạt, không có auth.
 
-**Phải sửa ở Phase 1:** tách rõ hai vùng trong schema và ghi trong tài liệu:
+**Đã sửa:** tách rõ hai vùng trong schema và ghi trong tài liệu:
 - **Vùng registrar** — cần xác thực nhân viên trường. Wave 1 mock, ghi rõ `@auth` trong schema
 - **Vùng student** — sinh viên chỉ lấy được credential **của chính mình**
 
@@ -90,7 +95,7 @@ Nhưng như một API công khai thì đây là endpoint rò rỉ hàng loạt, 
 thì tới Phase 2 phải đổi schema — mà schema công khai thì không nên đổi.
 
 **Phải sửa ngay:** công bố `gpaScaled: Int!` (×100 → `372`) kèm `gpaScale: Int!`.
-Xem `06-phase2-midnight.md` §1.4.
+Xem `school-integration.md` §5 (bảng slot) và `contracts/src/eduproof.compact`.
 
 ---
 
@@ -203,7 +208,7 @@ Phải định nghĩa rõ và viết vào tài liệu:
 
 - **Phase 1:** JSON canonical hoá theo **RFC 8785 (JCS)** — khoá sắp xếp, không khoảng trắng
 - **Phase 2:** canonical hoá thành `Vector<N, Field>` theo bảng slot ở
-  `06-phase2-midnight.md` §1.4. Đây mới là bản chính, vì nó là thứ circuit đọc.
+  `school-integration.md` §5. Đây mới là bản chính, vì nó là thứ circuit đọc.
 
 → Nên định nghĩa **bảng slot** làm bản canonical **ngay từ Phase 1**, để Phase 2 không phải
 đổi schema công khai lần nữa.
@@ -212,7 +217,7 @@ Phải định nghĩa rõ và viết vào tài liệu:
 
 ## 5. Việc cần làm (bổ sung vào Phase 1, khối E)
 
-Khối E trong `05-phase1-mock-ui.md` đổi nội dung: **không** phải "chuyển school API thành
+Khối E của Phase 1 đổi nội dung: **không** phải "chuyển school API thành
 Next.js API route", mà là **"nâng school API thành GraphQL thật, giữ độc lập"**.
 
 > ✅ **KHỐI E ĐÃ HOÀN THÀNH (28/08/2026).** Chi tiết kiểm chứng ở §8.
@@ -236,7 +241,7 @@ Next.js API route", mà là **"nâng school API thành GraphQL thật, giữ đ�
 - [x] **E11** — `issuerPublicKey` nằm ở `School`, **không** trong credential
 - [x] **E12** — Ba vùng public/student/registrar, mô tả rõ trong SDL
 - [x] **E13** — `SchoolBoundaryNote` + comment đầu route + `npm run check:boundaries`
-- [x] **E14** — `SCHOOL-INTEGRATION.md`
+- [x] **E14** — `school-integration.md`
 - [x] **E15** — Introspection hoạt động
 - [x] **E16** — Kiểm chứng hai vỏ khớp nhau, gồm cả đường lỗi
 
@@ -371,7 +376,7 @@ alias `@/` và không đọc trực tiếp được TypeScript.
 đúng chỗ cần type nhất. Một script `npm run school:build` là cái giá rẻ.
 Nếu Node trên máy đủ mới thì C cũng ổn.
 
-→ Ghi thành **Q12** trong `10-open-questions.md`.
+→ Đã chốt: TypeScript chạy qua `--experimental-strip-types`, không build step riêng.
 
 ### 7.2 Danh sách sinh viên trong demo
 
@@ -432,7 +437,7 @@ clean  year 3
 ```
 
 ### 8.5 Build
-`npm run build` pass, 10 route. `graphql` **không lọt vào bundle client**
+`npm run build` pass (10 route ở thời điểm đó, nay 13). `graphql` **không lọt vào bundle client**
 (First Load JS vẫn 102 kB) — nó chỉ chạy phía server và ở server rời.
 
 ### 8.6 Còn nợ

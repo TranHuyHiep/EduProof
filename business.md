@@ -170,28 +170,34 @@ phát credential đáng tin cậy.
 
 ## 9. Phạm vi hiện tại
 
-Bản MVP tập trung chứng minh **trải nghiệm sản phẩm và mô hình riêng tư**.
+**Đã có — và là thật, không phải mô phỏng:**
 
-**Đã có:** đầy đủ luồng 3 vai trò · 5 loại mệnh đề · link xác minh chia sẻ
-được · dữ liệu 10 sinh viên gồm cả tình huống đạt và không đạt.
+- Đầy đủ luồng 3 vai trò, 5 loại mệnh đề, link xác minh chia sẻ được, dữ liệu
+  10 sinh viên gồm cả tình huống đạt và không đạt.
+- **Mạch zero-knowledge chạy thật.** Một circuit Compact duy nhất nhận mệnh đề
+  làm tham số. Kết quả mỗi mệnh đề là phán quyết của circuit, không phải của
+  code JavaScript.
+- **Nhà trường ký thật**, hai lần trên cùng một sự thật: Ed25519 trên JSON
+  chuẩn hoá cho bên tích hợp thông thường, và JubJub Schnorr trên vector 16
+  trường cho circuit.
+- **Ràng buộc chủ sở hữu.** Circuit từ chối trả lời nếu người gọi không biết bí
+  mật đứng sau subject commitment — credential rò rỉ không dùng được cho người khác.
 
-**Chưa có:** ký số thật · sinh bằng chứng bằng zero-knowledge · lưu trữ phía
-máy chủ · xác thực người dùng · tích hợp hệ thống nhà trường.
+**Chưa có:** lưu trữ bằng chứng phía máy chủ (link chỉ mở được trên thiết bị đã
+tạo) · xác thực nhân viên phòng đào tạo · thu hồi credential · nhiều trường.
 
-Chi tiết kỹ thuật và ranh giới mô phỏng: xem [README.md](README.md).
+Ranh giới giữa cái gì thật và cái gì chưa: xem [README.md](README.md).
 
 ---
 
 ## 10. Hướng phát triển
 
-**Giai đoạn 2 — Bằng chứng thật.** Thay lớp mock bằng mạch Compact trên
-Midnight: dữ liệu học tập trở thành đầu vào riêng tư, chỉ kết quả mệnh đề là
-công khai. Bổ sung chữ ký thật của nhà trường và ràng buộc credential với ví
-sinh viên, để sinh viên khác không dùng được credential không phải của mình.
+**Wave 2.** Đọc danh bạ nhà trường từ chain thay vì từ file · lưu bằng chứng
+phía máy chủ để chia sẻ liên thiết bị · kết nối ví Lace · **Proof Request**:
+bên xác minh hỏi, sinh viên duyệt.
 
-**Giai đoạn 3 — Sẵn sàng vận hành.** Lưu trữ bằng chứng phía máy chủ để chia
-sẻ liên thiết bị · đăng nhập qua tài khoản trường · thu hồi credential ·
-nhiều trường cùng tham gia · cổng tra cứu cho bên xác minh.
+**Wave 3.** Cổng tích hợp cho các trường dựa trên schema v1 · thu hồi
+credential · tiết lộ chọn lọc trên nhiều nguồn cấp cùng lúc.
 
 ---
 

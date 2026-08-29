@@ -2,8 +2,9 @@
 
 Two supported ways to run it, and one thing to understand before either.
 
-> **Nothing here has been deployed.** These are instructions, not a record. The
-> decision to deploy is the project owner's.
+> Deploying the app is the project owner's decision. The contract deployment is
+> covered under [The contract](#the-contract); everything else here is
+> instructions rather than a record.
 
 ## What holds the data
 
@@ -69,7 +70,7 @@ One project, both the app and the stand-in school route.
    | `SCHOOL_SIGNING_KEY` | from `npm run school:genkey` | **yes** |
    | `NEXT_PUBLIC_SCHOOL_API` | `/api/school/graphql` | no, this is the default |
    | `NEXT_PUBLIC_PROOF_PROVIDER` | `mock` or `midnight` | no, defaults to `mock` |
-   | `NEXT_PUBLIC_CONTRACT_ADDRESS` | contract address, once deployed | no |
+   | `NEXT_PUBLIC_CONTRACT_ADDRESS` | the deployed contract's address | no — empty disables the on-chain features |
 
 3. Deploy. No other configuration is needed.
 
@@ -133,7 +134,7 @@ making knowingly for a demo and worth avoiding in production.
 To run your own:
 
 ```bash
-docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.0.3
+docker run --rm -p 6300:6300 -e PORT=6300 midnightntwrk/proof-server:8.1.0
 ```
 
 Then rebuild the app with `NEXT_PUBLIC_PROOF_SERVER=http://localhost:6300`
@@ -147,13 +148,35 @@ The compiled artifacts in `contracts/build/` are committed. To rebuild them you
 need the Compact toolchain:
 
 ```bash
-compact update 0.34.0
+compact update 0.31.1
 npm run contract:build
 ```
 
-Versions must line up: toolchain `0.34.0` gives language `0.26.0` and runtime
-`0.19.0`, which is what `@midnight-ntwrk/compact-runtime@0.19.0` in
-`package.json` expects. A mismatch fails at run time, not at build time.
+Versions must line up, and the pin is load-bearing. Preprod runs **ledger 8**,
+so toolchain `0.31.1` → language `0.23.0` → runtime `0.16.0`, matching
+`@midnight-ntwrk/compact-runtime@0.16.0` in `package.json`.
+
+Building with `0.34.0` instead produces artifacts asserting
+`checkRuntimeVersion('0.19.0')`, whose runtime pulls `onchain-runtime-v4`
+(ledger 9 — deployed on no public network). Those artifacts import cleanly and
+return a valid-looking verifier key; they fail only when a transaction is
+assembled, after fees are spent. `npm run contract:build` pins the version so
+this cannot happen by accident.
+
+---
+
+## Verified
+
+The Docker path was built and run, not just written:
+
+```
+docker build -t eduproof .        # 338 MB image
+docker run -p 3000:3000 -e SCHOOL_SIGNING_KEY=... eduproof
+```
+
+All routes answer 200, the GraphQL endpoint responds, the `HEALTHCHECK` reports
+`healthy`, and the container runs as `uid=1001(nextjs)` rather than root.
+Verified on 2026-08-29.
 
 ---
 

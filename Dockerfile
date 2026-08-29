@@ -3,7 +3,7 @@
 # Deliberately does NOT compile the Compact contract. The build artifacts are
 # committed to the repository (contracts/build), because compiling needs the
 # Compact toolchain and several minutes, and neither belongs in an image build
-# or in a Vercel deployment. See PLAN-MUST-READ-FIRST/06-phase2-midnight.md §5.3.
+# or in a Vercel deployment. See docs/deployment.md.
 
 # ── deps ──────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS deps

@@ -77,7 +77,11 @@ proveCredentialPredicate(
 It refuses to answer unless three things hold:
 
 1. **Issuer authenticity** — the school's Schnorr signature over the whole
-   credential vector verifies against the key held on the public ledger.
+   credential vector verifies against the key held on the public ledger. The
+   verification is written out by hand in
+   [`contracts/src/schnorr.compact`](contracts/src/schnorr.compact):
+   `jubjubSchnorrVerify` is a standard-library built-in in language 0.26, but
+   not in 0.23, and 0.23 is what ledger 8 — and therefore Preprod — requires.
 2. **Ownership** — the caller knows the secret behind the subject commitment.
    Without this, a leaked credential would prove just as well for a stranger.
 3. **Binding** — the credential's own slots name the subject and the issuer
@@ -140,21 +144,23 @@ Stated plainly, because overclaiming is easy to check.
 - The school signs with JubJub Schnorr for real.
 - No private value can enter a `Proof`. Enforced by tests and by the type.
 
+- The contract targets **ledger 8**, which is what Preprod actually runs. This
+  was not free: `jubjubSchnorrVerify` is a language 0.26 built-in and does not
+  exist on ledger 8's language 0.23, so the verification is hand-rolled in
+  [`contracts/src/schnorr.compact`](contracts/src/schnorr.compact).
+
 **Not yet:**
-- The contract is **not deployed** to the preview network, so
-  `NEXT_PUBLIC_CONTRACT_ADDRESS` is empty and verification says so rather than
-  showing a tick that means nothing.
-- No transaction is submitted; no ZK proof is generated through a proof server.
-  The hosted endpoint was verified reachable with permissive CORS, no more.
 - The issuer registry is built in memory per session, not read from chain.
 - No Lace wallet connection.
+- A proof link opens only on the device that created it — there is no server
+  store behind it yet.
 
 ### The trust boundary we did not paper over
 
 A proof server **sees the witness**. That is true of any Midnight deployment,
 including this one. Using a hosted proof server is therefore a real trust
 trade-off, and a production deployment should run one on the user's side —
-`DEPLOYMENT.md` explains how.
+`docs/deployment.md` explains how.
 
 We considered proxying it through our own API route to work around CORS. We did
 not, and would not have: our proxy would have seen the witness too, which is the
@@ -241,7 +247,7 @@ GPA, forge a signature, and present someone else's credential.
 ## Tests
 
 ```bash
-npm test                  # 225 tests
+npm test                  # 231 tests
 npm run check:boundaries  # architecture rules
 npm run build             # production build
 ```
@@ -250,6 +256,7 @@ npm run build             # production build
 |---|---|
 | `tests/privacy.test.ts` | No private value reaches a `Proof`. Keep this one if all others are deleted |
 | `contracts/tests/circuit.test.ts` | The circuit constrains what it claims to — bad signatures, wrong holder, tampered credentials |
+| `contracts/tests/reduction.test.ts` | The Schnorr challenge-reduction witness cannot be lied to |
 | `tests/circuit-encoding.test.ts` | The registry, the slot table and the operator codes stay in lockstep |
 | `tests/issuer-signing.test.ts` | The issuer key is stable, and a rewritten attribute breaks the signature |
 | `tests/school-circuit.test.ts` | The school's wire format matches what the client rebuilds |
@@ -260,14 +267,30 @@ check turns 6 red, removing the ownership check 2, changing `>=` to `>` 2, and
 pinning `selectSlot` to slot 0 turns 13 red. A test that cannot fail is not a
 test.
 
+Hand-rolling Schnorr added a witness the built-in did not have — the prover
+supplies the split of the challenge hash, because dividing in a circuit is
+expensive and checking a division is cheap. That is only sound if the check is
+airtight, so `contracts/tests/reduction.test.ts` feeds the circuit deliberately
+wrong splits (a zero quotient, an out-of-range quotient, and a shifted split
+that still reconstructs arithmetically) and requires it to refuse.
+
 ---
 
 ## The contract
 
 ```bash
-compact update 0.34.0     # toolchain 0.34.0 → language 0.26.0, runtime 0.19.0
+compact update 0.31.1     # toolchain 0.31.1 → language 0.23, runtime 0.16.0
 npm run contract:build
 ```
+
+The version is pinned, and the pin is load-bearing. Preprod runs **ledger 8**,
+which means `compact-runtime` 0.16.0, which means toolchain 0.31.1 — the
+version the [support matrix](https://docs.midnight.network/relnotes/support-matrix)
+names. Building with 0.34.0 produces artifacts asserting
+`checkRuntimeVersion('0.19.0')`, whose runtime pulls `onchain-runtime-v4`
+(ledger 9). Those artifacts load without complaint and fail only when a
+transaction is assembled — after fees are spent. `docs/lessons.md`
+has the full analysis.
 
 Artifacts in `contracts/build/` are **committed on purpose**: compiling needs
 the Compact toolchain and would run against Vercel's build limits. A deployment
@@ -277,22 +300,26 @@ is just a Next.js build.
 
 ## Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) — Vercel, Docker, the signing key, and what
+See [docs/deployment.md](docs/deployment.md) — Vercel, Docker, the signing key, and what
 holds the data (there is no database, and that is deliberate).
 
-Nothing has been deployed. Those are instructions, not a record.
+`NEXT_PUBLIC_CONTRACT_ADDRESS` gates the on-chain features: while it is empty,
+verification says so rather than showing a tick that means nothing.
 
 ---
 
 ## Roadmap
 
-**Wave 2** — deploy to the preview network and read the issuer registry from
-chain; `ChainProofStore` behind the existing `ProofStore` interface, which makes
-a proof link work on any device; Lace wallet with signature-based ownership;
+**Wave 2** — read the issuer registry from chain rather than from memory;
+`ChainProofStore` behind the existing `ProofStore` interface, which makes a
+proof link work on any device; Lace wallet with signature-based ownership;
 **Proof Request**, where a verifier asks and the student approves.
 
 **Wave 3** — an integration gateway for institutions, built on the v1 schema;
 credential revocation; selective disclosure across multiple issuers.
+
+Feature by feature: [docs/wave-2-features.md](docs/wave-2-features.md),
+[docs/wave-3-features.md](docs/wave-3-features.md).
 
 ---
 
@@ -304,6 +331,15 @@ credential revocation; selective disclosure across multiple issuers.
   registrar endpoint returns the very data EduProof exists to protect; a real
   school must authenticate staff there. Documented rather than quietly omitted.
 - One school ships in `data/`. The model supports more.
+
+---
+
+## Documentation
+
+[docs/](docs/) — start at [docs/wave-1-plan.md](docs/wave-1-plan.md), which says
+what is left to do. Also there: the architecture, the integration spec for
+institutions, and [docs/lessons.md](docs/lessons.md), which records the version,
+DUST and seed traps that cost the most time.
 
 ---
 

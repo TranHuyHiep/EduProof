@@ -14,7 +14,7 @@ Integrating means implementing one GraphQL schema and holding one signing key.
 ## 1. What you run
 
 A GraphQL endpoint implementing the schema in
-[`lib/school/schema.ts`](lib/school/schema.ts). The reference implementation in
+[`lib/school/schema.ts`](../lib/school/schema.ts). The reference implementation in
 this repository stands in for a university and is the executable specification —
 run it, introspect it, compare against it.
 
@@ -77,7 +77,7 @@ The rules, in full:
 - `undefined` values omitted
 
 The reference implementation is ~30 lines in
-[`lib/school/canonical.ts`](lib/school/canonical.ts) — deliberately written out
+[`lib/school/canonical.ts`](../lib/school/canonical.ts) — deliberately written out
 rather than pulled from a dependency, because this is the one piece you must
 reimplement byte-for-byte.
 
@@ -159,8 +159,8 @@ The JubJub signing scalar is **derived** from the same `SCHOOL_SIGNING_KEY`, so
 you still manage one secret. Publish the public half as
 `school { circuitPublicKey { x y } }`.
 
-See [`lib/school/circuit-vector.ts`](lib/school/circuit-vector.ts) and
-[`lib/school/keys.ts`](lib/school/keys.ts).
+See [`lib/school/circuit-vector.ts`](../lib/school/circuit-vector.ts) and
+[`lib/school/keys.ts`](../lib/school/keys.ts).
 
 ---
 
@@ -192,9 +192,9 @@ See [`lib/school/circuit-vector.ts`](lib/school/circuit-vector.ts) and
 
 | File | What it is |
 |---|---|
-| [`lib/school/schema.ts`](lib/school/schema.ts) | The schema. The contract. |
-| [`lib/school/canonical.ts`](lib/school/canonical.ts) | Canonical JSON + the slot table |
-| [`lib/school/circuit-vector.ts`](lib/school/circuit-vector.ts) | Credential → field vector |
-| [`lib/school/credential.ts`](lib/school/credential.ts) | Assemble, canonicalise, sign |
-| [`lib/school/keys.ts`](lib/school/keys.ts) | Key loading, and why it must be stable |
-| [`mock-school-api/server.mjs`](mock-school-api/server.mjs) | A runnable school, ~70 lines |
+| [`lib/school/schema.ts`](../lib/school/schema.ts) | The schema. The contract. |
+| [`lib/school/canonical.ts`](../lib/school/canonical.ts) | Canonical JSON + the slot table |
+| [`lib/school/circuit-vector.ts`](../lib/school/circuit-vector.ts) | Credential → field vector |
+| [`lib/school/credential.ts`](../lib/school/credential.ts) | Assemble, canonicalise, sign |
+| [`lib/school/keys.ts`](../lib/school/keys.ts) | Key loading, and why it must be stable |
+| [`mock-school-api/server.mjs`](../mock-school-api/server.mjs) | A runnable school, ~70 lines |
