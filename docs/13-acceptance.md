@@ -108,6 +108,40 @@ Cả hai đều là lỗi của **phép đo**, không phải của sản phẩm.
 
 ---
 
+## Trước khi để repo public
+
+```bash
+npm run check:secrets
+```
+
+Kiểm tra **lịch sử git**, không phải chỉ thư mục hiện tại — `.gitignore` chỉ
+chặn commit tiếp theo, thứ đã commit rồi vẫn nằm đó và ai clone cũng lấy được.
+
+Script tìm giá trị thật của `MIDNIGHT_WALLET_SEED` (cả dạng chữ lẫn hex dẫn
+xuất), `MIDNIGHT_PRIVATE_STATE_PASSWORD`, `SCHOOL_SIGNING_KEY` trong mọi
+commit, và xác nhận `.env.local`, `.wallet-state/`, `midnight-level-db/` không
+bị theo dõi. Nó không in ra giá trị nào.
+
+Đã chạy 2026-08-30: **lịch sử sạch**, không bí mật nào từng vào git.
+
+### Không đưa cho người khác
+
+| Thứ | Vì sao |
+|---|---|
+| `MIDNIGHT_WALLET_SEED` | là khoá ví — ai có thì tiêu được toàn bộ tiền, ở mọi mạng |
+| `.wallet-state/*.json` | dẫn xuất từ seed; không tiêu được tiền nhưng phơi toàn bộ UTXO và lịch sử ví |
+| `MIDNIGHT_PRIVATE_STATE_PASSWORD` | khoá mã hoá kho private state |
+| `midnight-level-db/` | kho private state đã mã hoá — dữ liệu chạy của máy mày |
+
+Người clone **không cần** thứ nào ở trên. Mặc định app chạy provider `mock`,
+không cần ví, Docker hay toolchain. Muốn chạy circuit thật thì họ tự tạo ví
+của họ.
+
+`midnight-level-db/` từng bị commit nhầm — đã gỡ khỏi git (giữ trên đĩa) và
+thêm vào `.gitignore`. Đã kiểm tra: nó **không** chứa seed.
+
+---
+
 ## Còn thiếu để nộp bài
 
 Không phải việc code. Thiếu là **bị loại thẳng**:

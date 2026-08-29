@@ -11,6 +11,7 @@
     "school": "node --env-file-if-exists=.env.local --experimental-strip-types mock-school-api/server.mjs",
     "school:genkey": "node scripts/genkey.mjs",
     "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:secrets": "node --env-file-if-exists=.env.local scripts/check-secrets.mjs",
     "contract:build": "node scripts/build-contract.mjs",
     "contract:deploy": "node scripts/deploy-contract.mjs",
     "contract:register-issuer": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/register-issuer.mjs",
