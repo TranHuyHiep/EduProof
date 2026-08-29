@@ -305,6 +305,29 @@ Thiếu `ledgerParams` thì ví khôi phục sync đúng nhưng **tính phí sai
 hỏng không báo lỗi, chỉ lộ ra lúc node từ chối transaction. Log của testkit ở
 mức INFO có in `Creating dust wallet with params: …`, đối chiếu được.
 
+### Ba thứ Midnight không đảm bảo, nên tự phòng
+
+Hỏi support thì được xác nhận: **không có tài liệu nào** nói checkpoint cũ tới
+mức nào thì hỏng, `restore()` có kiểm tra network/seed không, hay format có
+tương thích giữa các phiên bản không. Nên code tự phòng cả ba:
+
+**Kiểm tra progress sau khi khôi phục.** testkit của Midnight cũng không tin
+restored state — nó so applied với highest rồi fallback nếu vô lý. Bản của
+mình: `appliedIndex > highestRelevantWalletIndex` nghĩa là state không thuộc
+chain này (sai network, hoặc chain đã reset) → sync lại từ đầu.
+
+**Ghi version vào checkpoint.** `serializeState()` có `protocolVersion` nội bộ
+nhưng không cam kết đọc được sau khi nâng cấp. Lệch version thì bỏ file. Mất
+một checkpoint tốn một lần sync; nạp file thư viện không còn hiểu có thể tốn
+một transaction.
+
+**Đọc version thẳng từ `node_modules`.** Export map của
+`wallet-sdk-dust-wallet` chặn cả `import.meta.resolve` lẫn `require.resolve`,
+kể cả với chính `package.json` của nó (`ERR_PACKAGE_PATH_NOT_EXPORTED`). Dùng
+resolver sẽ trả `"unknown"`, và khi đó **mọi** checkpoint đều bị bỏ — tính năng
+im lặng vô dụng, triệu chứng giống hệt "chưa có checkpoint". Đã suýt ship lỗi
+này; chỉ lộ ra vì có test cả hai chiều khớp/lệch.
+
 ### Vẫn nên đếm trước số transaction
 
 Checkpoint không xoá được cái giá của lần sync **đầu tiên**. Wave 1 cần hai

@@ -20,6 +20,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "node:fs";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** Where a wallet's dust checkpoint lives. Keyed by seed so two wallets cannot collide. */
 export function checkpointPath(seed) {
@@ -115,13 +116,79 @@ export async function providerFromCheckpoint(logger, env, seed, savedState) {
   );
 }
 
-/** Reads a checkpoint, or null when there is none or it cannot be read. */
-export function readCheckpoint(seed) {
+/**
+ * Rejects a restored wallet whose progress does not make sense.
+ *
+ * Midnight's own testkit does not trust a restored state either — it compares
+ * applied against highest and falls back to a cold sync when the gap is
+ * negative. A negative gap means the checkpoint claims to have applied blocks
+ * the chain does not have, which is what restoring the wrong network's state,
+ * or a state from a chain that was reset, looks like.
+ *
+ * Cheap to check, and the alternative is a wallet that syncs happily and is
+ * wrong about its own money.
+ */
+export function progressIsSane(progress) {
+  if (!progress) return false;
+
+  const applied = progress.appliedIndex ?? 0n;
+  const highest = progress.highestRelevantWalletIndex ?? 0n;
+
+  // Ahead of the chain: the state does not belong to this chain.
+  if (highest > 0n && applied > highest) return false;
+
+  return true;
+}
+
+/**
+ * The dust wallet version a checkpoint was written by.
+ *
+ * Midnight makes no promise that `serializeState()` output survives a package
+ * upgrade — the format carries an internal protocolVersion, but nothing
+ * documents cross-version compatibility. So the version is recorded and a
+ * mismatch discards the file. Losing a checkpoint costs a sync; loading one
+ * the library no longer understands could cost a transaction.
+ */
+function dustWalletVersion() {
+  // Read straight from node_modules. The package's export map blocks both
+  // `import.meta.resolve` and `require.resolve` — including for its own
+  // package.json — with ERR_PACKAGE_PATH_NOT_EXPORTED, so there is no
+  // resolver-based way in. Walking up from this file is ugly and works.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    `${here}/../../node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/package.json`,
+    `${process.cwd()}/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/package.json`,
+  ];
+
+  for (const path of candidates) {
+    try {
+      return JSON.parse(readFileSync(path, "utf8")).version;
+    } catch {
+      /* try the next one */
+    }
+  }
+  return "unknown";
+}
+
+/** Reads a checkpoint, or null when there is none, or it cannot be used. */
+export async function readCheckpoint(seed) {
   const path = checkpointPath(seed);
   if (!existsSync(path)) return null;
   try {
-    const { state, savedAt } = JSON.parse(readFileSync(path, "utf8"));
-    return state ? { state, savedAt, path } : null;
+    const { state, savedAt, dustWalletVersion: writtenBy } = JSON.parse(
+      readFileSync(path, "utf8"),
+    );
+    if (!state) return null;
+
+    const current = dustWalletVersion();
+    if (writtenBy && writtenBy !== current) {
+      console.log(
+        `checkpoint was written by wallet-sdk-dust-wallet ${writtenBy}, now ${current} — ignoring it.`,
+      );
+      return null;
+    }
+
+    return { state, savedAt, path };
   } catch {
     // A corrupt checkpoint is not worth a failed run.
     return null;
@@ -134,7 +201,14 @@ export async function writeCheckpoint(seed, walletProvider) {
     const state = await walletProvider.wallet.dust.serializeState();
     const path = checkpointPath(seed);
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, JSON.stringify({ savedAt: new Date().toISOString(), state }));
+    writeFileSync(
+      path,
+      JSON.stringify({
+        savedAt: new Date().toISOString(),
+        dustWalletVersion: dustWalletVersion(),
+        state,
+      }),
+    );
     return { path, size: statSync(path).size };
   } catch (error) {
     return { error: error?.message ?? String(error) };

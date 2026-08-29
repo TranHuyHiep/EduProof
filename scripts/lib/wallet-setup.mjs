@@ -177,14 +177,16 @@ export async function openFundedWallet() {
   // from wherever the last run got to. Falling back to a cold sync is always
   // correct, so a stale or unreadable checkpoint costs time, never a run.
   const { providerFromCheckpoint, readCheckpoint } = await import("./wallet-restore.mjs");
-  const checkpoint = readCheckpoint(seed);
+  const checkpoint = await readCheckpoint(seed);
 
   let walletProvider;
+  let restored = false;
   if (checkpoint) {
     const age = Math.round((Date.now() - new Date(checkpoint.savedAt).getTime()) / 60000);
     process.stdout.write(`restoring dust state from ${age} minutes ago … `);
     try {
       walletProvider = await providerFromCheckpoint(logger, config, seed, checkpoint.state);
+      restored = true;
       console.log("ok");
     } catch (error) {
       console.log(`failed (${error?.message ?? error})`);
@@ -209,6 +211,31 @@ export async function openFundedWallet() {
       Rx.timeout({ each: 120_000, with: () => Rx.throwError(() => new Error("indexer did not respond")) }),
     ),
   );
+
+  // A restored wallet gets one sanity check before it is trusted. Midnight's
+  // own testkit does the same and falls back to a cold sync rather than carry
+  // on with a state it cannot reconcile.
+  if (restored) {
+    const { progressIsSane } = await import("./wallet-restore.mjs");
+    const check = await Rx.firstValueFrom(walletProvider.wallet.state());
+
+    if (!progressIsSane(check.unshielded?.progress)) {
+      console.log("restored state does not line up with the chain — syncing from scratch.");
+      await walletProvider.stop();
+
+      walletProvider = await MidnightWalletProvider.build(logger, config, seed);
+      await walletProvider.start(false);
+      await Rx.firstValueFrom(
+        walletProvider.wallet.state().pipe(
+          Rx.filter((s) => s.unshielded.progress?.isStrictlyComplete?.() === true),
+          Rx.timeout({
+            each: 120_000,
+            with: () => Rx.throwError(() => new Error("indexer did not respond")),
+          }),
+        ),
+      );
+    }
+  }
 
   const state = await Rx.firstValueFrom(walletProvider.wallet.state());
   const utxos = state.unshielded.availableCoins ?? [];
