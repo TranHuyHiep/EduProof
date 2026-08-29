@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { providerName } from "@/lib/midnight/config";
+import { NETWORK, explorerContractUrl, midnightConfig, providerName } from "@/lib/midnight/config";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,9 +25,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Midnight build and would have overstated the mock.
         */}
         <div className="no-print border-b border-rule-soft bg-paper-deep px-5 py-1.5 text-center text-[11px] tracking-wide text-ink-faint">
-          {providerName() === "midnight"
-            ? "Statements are proven by a Compact circuit · the contract is not yet deployed to a network"
-            : "Demo mode · statements are evaluated in the open · run with NEXT_PUBLIC_PROOF_PROVIDER=midnight for the real circuit"}
+          {providerName() !== "midnight" ? (
+            "Demo mode · statements are evaluated in the open · run with NEXT_PUBLIC_PROOF_PROVIDER=midnight for the real circuit"
+          ) : midnightConfig.contractAddress ? (
+            <>
+              Statements are proven by a Compact circuit ·{" "}
+              <a
+                className="underline underline-offset-2 hover:text-ink"
+                href={explorerContractUrl() ?? undefined}
+                target="_blank"
+                rel="noreferrer"
+              >
+                the contract is deployed to {NETWORK}
+              </a>
+            </>
+          ) : (
+            "Statements are proven by a Compact circuit · the contract is not yet deployed to a network"
+          )}
         </div>
 
         <header className="no-print border-b border-rule bg-paper/95 backdrop-blur">

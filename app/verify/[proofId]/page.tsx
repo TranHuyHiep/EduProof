@@ -6,6 +6,7 @@ import { Seal } from "@/components/seal";
 import { IconAlert, IconArrowRight, IconLock } from "@/components/icons";
 import { ATTRIBUTES, proofProvider } from "@/lib/proof";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { NETWORK, explorerContractUrl, midnightConfig } from "@/lib/midnight/config";
 import type { VerificationResult } from "@/types";
 
 /** Attributes a proof deliberately does not carry, whichever claims it makes. */
@@ -142,6 +143,26 @@ export default function VerifyProofPage({
           <Entry label="Credential valid until" value={formatDate(proof.expiresAt)} />
           <Entry label="Proving system" value={proof.provider} />
         </dl>
+
+        {/*
+          The point of deploying at all: a verifier can confirm the contract
+          exists without taking our word for it. Rendered only when there is an
+          address, so the absence of a link is never mistaken for a dead one.
+        */}
+        {midnightConfig.contractAddress && (
+          <p className="pt-4 text-xs leading-relaxed text-ink-faint">
+            Verified against a contract on {NETWORK} —{" "}
+            <a
+              className="underline underline-offset-2 hover:text-ink"
+              href={explorerContractUrl() ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+            >
+              look it up on the block explorer
+            </a>
+            .
+          </p>
+        )}
       </section>
 
       <footer className="rule-soft flex flex-wrap items-center justify-between gap-4 border-t pt-6">
