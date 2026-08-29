@@ -160,7 +160,7 @@ Stated plainly, because overclaiming is easy to check.
 A proof server **sees the witness**. That is true of any Midnight deployment,
 including this one. Using a hosted proof server is therefore a real trust
 trade-off, and a production deployment should run one on the user's side —
-`docs/deployment.md` explains how.
+`docs/32-deployment.md` explains how.
 
 We considered proxying it through our own API route to work around CORS. We did
 not, and would not have: our proxy would have seen the witness too, which is the
@@ -290,7 +290,7 @@ version the [support matrix](https://docs.midnight.network/relnotes/support-matr
 names. Building with 0.34.0 produces artifacts asserting
 `checkRuntimeVersion('0.19.0')`, whose runtime pulls `onchain-runtime-v4`
 (ledger 9). Those artifacts load without complaint and fail only when a
-transaction is assembled — after fees are spent. `docs/lessons.md`
+transaction is assembled — after fees are spent. `docs/22-lessons.md`
 has the full analysis.
 
 Artifacts in `contracts/build/` are **committed on purpose**: compiling needs
@@ -301,7 +301,7 @@ is just a Next.js build.
 
 ## Deployment
 
-See [docs/deployment.md](docs/deployment.md) — Vercel, Docker, the signing key, and what
+See [docs/32-deployment.md](docs/32-deployment.md) — Vercel, Docker, the signing key, and what
 holds the data (there is no database, and that is deliberate).
 
 `NEXT_PUBLIC_CONTRACT_ADDRESS` gates the on-chain features: while it is empty,
@@ -319,8 +319,8 @@ proof link work on any device; Lace wallet with signature-based ownership;
 **Wave 3** — an integration gateway for institutions, built on the v1 schema;
 credential revocation; selective disclosure across multiple issuers.
 
-Feature by feature: [docs/wave-2-features.md](docs/wave-2-features.md),
-[docs/wave-3-features.md](docs/wave-3-features.md).
+Feature by feature: [docs/40-wave-2-features.md](docs/40-wave-2-features.md),
+[docs/41-wave-3-features.md](docs/41-wave-3-features.md).
 
 ---
 
@@ -337,9 +337,9 @@ Feature by feature: [docs/wave-2-features.md](docs/wave-2-features.md),
 
 ## Documentation
 
-[docs/](docs/) — start at [docs/wave-1-plan.md](docs/wave-1-plan.md), which says
+[docs/](docs/) — start at [docs/10-wave-1-plan.md](docs/10-wave-1-plan.md), which says
 what is left to do. Also there: the architecture, the integration spec for
-institutions, and [docs/lessons.md](docs/lessons.md), which records the version,
+institutions, and [docs/22-lessons.md](docs/22-lessons.md), which records the version,
 DUST and seed traps that cost the most time.
 
 ---

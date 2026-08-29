@@ -1,7 +1,7 @@
 # Wave 1 — Tính năng
 
 **Trạng thái: đã xong.** Đây là mô tả cái đang chạy, không phải kế hoạch.
-Kiến trúc và các quyết định đứng sau: [wave-1-plan.md](wave-1-plan.md).
+Kiến trúc và các quyết định đứng sau: [10-wave-1-plan.md](10-wave-1-plan.md).
 
 ---
 
@@ -79,7 +79,7 @@ Cả hai dẫn xuất từ **một** secret, nên trường vẫn chỉ quản m
 
 GPA lưu ×100 (3.72 → 372) vì circuit không có số thực.
 
-Đặc tả đầy đủ: [school-integration.md](school-integration.md).
+Đặc tả đầy đủ: [31-school-integration.md](31-school-integration.md).
 
 ## Riêng tư — cái không lộ
 

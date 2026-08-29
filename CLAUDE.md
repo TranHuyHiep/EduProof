@@ -2,7 +2,7 @@
 
 Hướng dẫn cho AI khi làm việc trong repo này.
 
-**Việc tiếp theo phải làm là gì → [docs/wave-1-plan.md](docs/wave-1-plan.md).**
+**Việc tiếp theo phải làm là gì → [docs/10-wave-1-plan.md](docs/10-wave-1-plan.md).**
 Đọc file đó trước khi hỏi.
 
 ---
@@ -59,7 +59,7 @@ Không bao giờ đưa giá trị thô vào claim, kể cả khi tiện tay.
 
 - **Không tự ý deploy, không đụng vào thứ ngoài phạm vi project.** Hỏi trước, mỗi lần.
   Việc ghi lên chain là không thể hoàn tác.
-- **Đọc [docs/lessons.md](docs/lessons.md) trước khi động vào phần Midnight.**
+- **Đọc [docs/22-lessons.md](docs/22-lessons.md) trước khi động vào phần Midnight.**
   Ba cái bẫy ở đó (phiên bản, DUST, seed) đều đã làm mất nhiều giờ.
 - **Không đoán phiên bản thư viện.** Ma trận hỗ trợ chính thức là nguồn sự thật,
   không phải "bản mới nhất". Preprod chạy **ledger 8**.

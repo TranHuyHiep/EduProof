@@ -61,7 +61,7 @@ async function toHexSeed(raw) {
     fail(`MIDNIGHT_WALLET_SEED must be 12 or 24 words. Found ${words.length}.`);
   }
   // The FULL seed. Truncating derives a different, empty wallet — see
-  // docs/lessons.md.
+  // docs/22-lessons.md.
   const { mnemonicToSeedSync } = await import("@scure/bip39");
   return Buffer.from(mnemonicToSeedSync(words.join(" "))).toString("hex");
 }

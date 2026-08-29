@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
 
   // Smaller Docker image: only the files actually needed to run get copied.
-  // See docs/deployment.md.
+  // See docs/32-deployment.md.
   output: "standalone",
 
   webpack: (config, { isServer }) => {

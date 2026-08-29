@@ -21,7 +21,7 @@ nó triển khai được thật.
 - Cấp credential hàng loạt
 - Bảng theo dõi credential đã cấp
 
-Dựng trên schema v1 đã công bố ở Wave 1 — xem [school-integration.md](school-integration.md).
+Dựng trên schema v1 đã công bố ở Wave 1 — xem [31-school-integration.md](31-school-integration.md).
 
 ## W3.3 Tương thích chuẩn
 

@@ -4,7 +4,7 @@
 // `jubjubSchnorrVerify` do not exist in compact-runtime 0.16.0, which is the
 // runtime ledger 8 requires — and Preprod runs ledger 8. The built-ins are
 // language 0.26 / runtime 0.19.0, which target ledger 9, deployed nowhere
-// public. See docs/lessons.md.
+// public. See docs/22-lessons.md.
 //
 // This file is the single implementation. The school signs with it, the tests
 // sign with it, and the circuit checks the result — so there is one place

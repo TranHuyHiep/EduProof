@@ -3,7 +3,7 @@
 Những chỗ mất nhiều thời gian nhất, ghi lại để không lặp. Toàn bộ đều đã kiểm
 chứng trên preprod, không phải suy đoán.
 
-Chi tiết kỹ thuật đầy đủ, kèm log và số liệu: [wave-1-plan.md](wave-1-plan.md).
+Chi tiết kỹ thuật đầy đủ, kèm log và số liệu: [10-wave-1-plan.md](10-wave-1-plan.md).
 
 ---
 

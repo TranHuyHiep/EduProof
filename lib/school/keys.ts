@@ -76,7 +76,7 @@ export function signCanonical(canonical: string): string {
 // Schnorr is written out by hand here for the same reason it is in
 // contracts/src/schnorr.compact: `jubjubSchnorrSign` does not exist in
 // compact-runtime 0.16.0, which is the runtime ledger 8 — and therefore
-// Preprod — requires. See docs/lessons.md.
+// Preprod — requires. See docs/22-lessons.md.
 //
 // Signing and verification must agree exactly, so both sides build the
 // challenge the same way and out of the same primitives.

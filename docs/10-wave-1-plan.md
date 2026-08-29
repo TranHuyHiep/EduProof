@@ -69,7 +69,7 @@ có, thay vì hiện một dấu tick vô nghĩa.
 
 **Nút thắt đã biết:** dust wallet sync từ genesis (~1.46 triệu index, khoảng
 90 phút). Fee balancer tiêu từ view local nên phải đợi sync xong, dù trên chain
-đã có DUST. Script deploy tự đợi và in tiến độ. Chi tiết: [lessons.md](lessons.md).
+đã có DUST. Script deploy tự đợi và in tiến độ. Chi tiết: [22-lessons.md](22-lessons.md).
 
 ---
 
@@ -93,7 +93,7 @@ Giữ bằng máy, không bằng lời hứa:
 npm run check:boundaries
 ```
 
-Chi tiết: [school-vendor-contract.md](school-vendor-contract.md).
+Chi tiết: [30-school-vendor-contract.md](30-school-vendor-contract.md).
 
 ### 3. Một điểm hoán đổi provider duy nhất
 
@@ -110,7 +110,7 @@ ra `Proof` cùng bộ field.
 
 Không bao giờ đưa giá trị thô vào claim, kể cả khi tiện.
 
-Chi tiết kiến trúc: [architecture.md](architecture.md).
+Chi tiết kiến trúc: [20-architecture.md](20-architecture.md).
 
 ---
 
@@ -133,7 +133,7 @@ Chi tiết kiến trúc: [architecture.md](architecture.md).
 1. **Không tự ý deploy hay đụng vào thứ ngoài phạm vi project.** Hỏi trước, mỗi lần.
 2. **Không nhảy Phase.** Một phiên trước đã có agent tự viết code Midnight giữa
    Phase 1, phải xoá đi làm lại.
-3. **Đọc [lessons.md](lessons.md) trước khi động vào phần Midnight.** Ba cái bẫy
+3. **Đọc [22-lessons.md](22-lessons.md) trước khi động vào phần Midnight.** Ba cái bẫy
    ở đó đều đã làm mất nhiều giờ.
 
-Quy ước code, vận hành, thẩm mỹ UI: [conventions.md](conventions.md).
+Quy ước code, vận hành, thẩm mỹ UI: [21-conventions.md](21-conventions.md).

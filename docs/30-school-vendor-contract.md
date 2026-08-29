@@ -95,7 +95,7 @@ Nhưng như một API công khai thì đây là endpoint rò rỉ hàng loạt, 
 thì tới Phase 2 phải đổi schema — mà schema công khai thì không nên đổi.
 
 **Phải sửa ngay:** công bố `gpaScaled: Int!` (×100 → `372`) kèm `gpaScale: Int!`.
-Xem `school-integration.md` §5 (bảng slot) và `contracts/src/eduproof.compact`.
+Xem `31-school-integration.md` §5 (bảng slot) và `contracts/src/eduproof.compact`.
 
 ---
 
@@ -208,7 +208,7 @@ Phải định nghĩa rõ và viết vào tài liệu:
 
 - **Phase 1:** JSON canonical hoá theo **RFC 8785 (JCS)** — khoá sắp xếp, không khoảng trắng
 - **Phase 2:** canonical hoá thành `Vector<N, Field>` theo bảng slot ở
-  `school-integration.md` §5. Đây mới là bản chính, vì nó là thứ circuit đọc.
+  `31-school-integration.md` §5. Đây mới là bản chính, vì nó là thứ circuit đọc.
 
 → Nên định nghĩa **bảng slot** làm bản canonical **ngay từ Phase 1**, để Phase 2 không phải
 đổi schema công khai lần nữa.
@@ -241,7 +241,7 @@ Next.js API route", mà là **"nâng school API thành GraphQL thật, giữ đ�
 - [x] **E11** — `issuerPublicKey` nằm ở `School`, **không** trong credential
 - [x] **E12** — Ba vùng public/student/registrar, mô tả rõ trong SDL
 - [x] **E13** — `SchoolBoundaryNote` + comment đầu route + `npm run check:boundaries`
-- [x] **E14** — `school-integration.md`
+- [x] **E14** — `31-school-integration.md`
 - [x] **E15** — Introspection hoạt động
 - [x] **E16** — Kiểm chứng hai vỏ khớp nhau, gồm cả đường lỗi
 

@@ -60,7 +60,7 @@ npm run dev -- -H 0.0.0.0    # cho truy cập từ ngoài
 # Chạy với circuit thật:
 NEXT_PUBLIC_PROOF_PROVIDER=midnight npm run dev
 
-# Build lại contract (cần Compact toolchain 0.31.1 — ledger 8, xem lessons.md):
+# Build lại contract (cần Compact toolchain 0.31.1 — ledger 8, xem 22-lessons.md):
 npm run contract:build
 ```
 

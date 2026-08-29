@@ -2,7 +2,7 @@
 //
 // Read once, here, so no other module has to know an environment variable
 // exists. Everything is NEXT_PUBLIC_ because proving happens in the browser —
-// see docs/architecture.md §6.
+// see docs/20-architecture.md §6.
 
 export type ProviderName = "mock" | "midnight";
 
@@ -58,7 +58,7 @@ export const midnightConfig = {
    * see the witness, whoever runs it.
    *
    * Submitting a transaction is different: it needs a proof server the wallet
-   * trusts, which Midnight requires to be a local one. See docs/deployment.md.
+   * trusts, which Midnight requires to be a local one. See docs/32-deployment.md.
    */
   proofServer:
     process.env.NEXT_PUBLIC_PROOF_SERVER ?? "https://proof-server.preprod.midnight.network",

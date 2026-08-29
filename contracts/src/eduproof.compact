@@ -78,7 +78,7 @@ witness studentSecretKey(): Field;
  *
  * Deliberately open in Wave 1 so a demo can register a school without an
  * out-of-band step. Wave 2 gates this on a signature from the school itself —
- * see PLAN-MUST-READ-FIRST/08-wave2-wave3.md.
+ * see docs/40-wave-2-features.md.
  */
 export circuit registerIssuer(schoolIdHash: Field, issuerPk: JubjubPoint): [] {
   issuers.insert(disclose(schoolIdHash), disclose(issuerPk));

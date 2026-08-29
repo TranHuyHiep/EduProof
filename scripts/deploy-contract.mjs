@@ -297,7 +297,7 @@ async function main() {
         // first non-zero balance, and the node rejected the transaction with
         // Custom error 170 (InvalidDustSpendProof): the dust spend proof was
         // built against a half-synced view, so it did not match the chain.
-        // Wait for the sync to actually complete. See docs/lessons.md #6.
+        // Wait for the sync to actually complete. See docs/22-lessons.md #6.
         if (p?.isStrictlyComplete?.() === true && balance > 0n) {
           sub.unsubscribe();
           console.log(`\r  synced — DUST ${balance}${" ".repeat(40)}`);

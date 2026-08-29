@@ -5,7 +5,7 @@
 // The output is checked into the repository on purpose. Compiling on Vercel
 // would need the Compact toolchain in the build image and would run against
 // the free tier's time limit; shipping the artifacts means a deploy is just a
-// Next.js build. See docs/deployment.md.
+// Next.js build. See docs/32-deployment.md.
 
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -21,7 +21,7 @@ const OUT = "contracts/build/eduproof";
 // with 0.34.0 instead produces artifacts asserting checkRuntimeVersion(0.19.0),
 // whose runtime pulls onchain-runtime-v4 (ledger 9). Those artifacts load
 // without complaint and fail only when a transaction is assembled, after fees
-// have been spent. See docs/lessons.md.
+// have been spent. See docs/22-lessons.md.
 const TOOLCHAIN = "0.31.1";
 
 // The toolchain is installed per-user rather than as a dependency, so it is

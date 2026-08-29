@@ -44,7 +44,7 @@ Bài nộp **bị loại thẳng, không được chấm** nếu thiếu bất k
 - [x] Code liên quan Midnight ở **Apache License 2.0** — `LICENSE` + `package.json`
 
 Ba ô còn trống ở trên là toàn bộ thứ đang chặn bài nộp. Xem
-[wave-1-plan.md](wave-1-plan.md).
+[10-wave-1-plan.md](10-wave-1-plan.md).
 
 > Cửa kỹ thuật là lý do phần Midnight không được phép cắt: một UI đẹp long lanh
 > mà không có Compact contract = 0 điểm.
@@ -117,5 +117,5 @@ Ghi ở đây vì chúng có hiệu lực ngang thể lệ đối với dự án
    - không process nền chạy dài
    - không tính toán nặng ở server-side render
    - build phải nhẹ
-   - cẩn thận với thư viện Midnight WASM ở phía server (xem `deployment.md`)
+   - cẩn thận với thư viện Midnight WASM ở phía server (xem `32-deployment.md`)
 4. **Không tự ý deploy hay đụng vào thứ ngoài phạm vi project** — hỏi chủ dự án trước, mỗi lần.
