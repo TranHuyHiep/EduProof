@@ -90,6 +90,20 @@ phải đợi dust wallet sync đủ để thấy DUST — nếu không sẽ ch�
 chỉ là chưa sync. Cái đáng tin là `registeredForDustGeneration` trong metadata
 của UTXO, vì nó đến từ unshielded wallet (sync trong vài giây).
 
+**Liệu pháp duy nhất là chờ.** Đo trên preprod 29/08: ~280 index/giây trên
+~1.46 triệu index → khoảng **90 phút** cho một lần sync nguội. Đừng đặt timeout
+theo cảm tính: bản đầu tao để 45 phút, nó tự huỷ ở 46% sau 40 phút chờ, và vì
+tiến độ **không lưu giữa các tiến trình** nên lần sau phải bắt đầu lại từ 0.
+
+`DustWallet` có `serializeState()` / `restore()`, nhưng `testkit-js` không mở
+chúng ra: `MidnightWalletProvider.build()` chỉ nhận `(logger, env, seed)`. Muốn
+lưu tiến độ phải bỏ testkit và tự dựng wallet — chưa làm, ghi lại để cân nhắc
+nếu phải deploy nhiều lần.
+
+Thêm một chi tiết làm việc chờ lâu hơn: DUST chỉ xuất hiện ở đoạn cuối của
+sync, vì UTXO vừa được đăng ký gần đây nên sự kiện của nó nằm sát đầu chain.
+Chờ `balance > 0` gần như là chờ sync xong.
+
 ---
 
 ## 3. Cắt seed BIP39 xuống 32 byte → mở nhầm một ví khác, rỗng
