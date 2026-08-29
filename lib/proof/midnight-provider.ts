@@ -17,7 +17,7 @@
 
 import type { Proof, VerificationResult } from "@/types";
 import { getSchool } from "@/lib/data";
-import { midnightConfig } from "@/lib/midnight/config";
+import { explorerContractUrl, midnightConfig } from "@/lib/midnight/config";
 import { encodeOperand, operatorCode, schoolIdHash } from "@/lib/midnight/encoding";
 import { attributeSpec } from "./attributes";
 import { labelOf, statementOf } from "./claims";
@@ -97,8 +97,36 @@ export class MidnightProofProvider implements ProofProvider {
         valid: true,
         proof,
         reason: "Verified locally; NEXT_PUBLIC_CONTRACT_ADDRESS is not set.",
+        onChain: { available: false, reason: "No contract is deployed." },
       };
     }
-    return { valid: true, proof };
+
+    // Ask the chain rather than assert. The registry the circuit checks
+    // against lives on the contract, so a verifier can confirm the issuer
+    // without trusting this app's own school list — which is the whole point
+    // of putting it on chain.
+    const { chainState, issuerRegistered } = await import("@/lib/midnight/chain");
+    const { schoolIdHash } = await import("@/lib/midnight/encoding");
+
+    const [state, issuer] = await Promise.all([
+      chainState(),
+      issuerRegistered(schoolIdHash(proof.issuer.schoolId)),
+    ]);
+
+    // A proof stands on the circuit's verdict. The chain being unreachable
+    // makes the on-chain half unknown, not the proof invalid.
+    return {
+      valid: true,
+      proof,
+      onChain: state.available
+        ? {
+            available: true,
+            issuerRegistered: issuer.registered,
+            issuerCount: state.issuerCount,
+            proofsVerified: state.proofsVerified?.toString(),
+            explorerUrl: explorerContractUrl() ?? undefined,
+          }
+        : { available: false, reason: state.reason },
+    };
   }
 }

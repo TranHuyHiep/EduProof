@@ -39,7 +39,7 @@ export default function VerifyProofPage({
     );
   }
 
-  const { valid, proof, reason } = result;
+  const { valid, proof, reason, onChain } = result;
 
   if (!proof) {
     return (
@@ -145,23 +145,50 @@ export default function VerifyProofPage({
         </dl>
 
         {/*
-          The point of deploying at all: a verifier can confirm the contract
-          exists without taking our word for it. Rendered only when there is an
-          address, so the absence of a link is never mistaken for a dead one.
+          What the chain itself says, read at verification time rather than
+          asserted. `issuerRegistered` is the one that carries weight: the
+          school's key is in the contract's registry, so the issuer does not
+          rest on this app's own school list.
+
+          When the chain cannot be reached the block says so. A proof is the
+          circuit's verdict and does not depend on an indexer being up, but a
+          verifier should be told which half they are looking at.
         */}
-        {midnightConfig.contractAddress && (
-          <p className="pt-4 text-xs leading-relaxed text-ink-faint">
-            Verified against a contract on {NETWORK} —{" "}
-            <a
-              className="underline underline-offset-2 hover:text-ink"
-              href={explorerContractUrl() ?? undefined}
-              target="_blank"
-              rel="noreferrer"
-            >
-              look it up on the block explorer
-            </a>
-            .
-          </p>
+        {onChain && (
+          <div className="rule-soft mt-6 border-t pt-4">
+            {onChain.available ? (
+              <>
+                <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
+                  <Entry
+                    label="Issuer on chain"
+                    value={onChain.issuerRegistered ? "registered" : "not registered"}
+                  />
+                  <Entry
+                    label="Predicates verified by this contract"
+                    value={onChain.proofsVerified ?? "—"}
+                  />
+                </dl>
+                <p className="pt-3 text-xs leading-relaxed text-ink-faint">
+                  Read from the contract's public ledger on {NETWORK} —{" "}
+                  <a
+                    className="underline underline-offset-2 hover:text-ink"
+                    href={onChain.explorerUrl ?? explorerContractUrl() ?? undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    look it up on the block explorer
+                  </a>
+                  .
+                </p>
+              </>
+            ) : (
+              <p className="text-xs leading-relaxed text-ink-faint">
+                The on-chain registry could not be consulted
+                {onChain.reason ? ` — ${onChain.reason}` : "."} The claims above
+                are the circuit's verdict and do not depend on it.
+              </p>
+            )}
+          </div>
         )}
       </section>
 
