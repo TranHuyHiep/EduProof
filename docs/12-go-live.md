@@ -80,9 +80,12 @@ Trang verify phải hiện *Issuer on chain: **registered***.
 ## Bước 3 — Chạy thử end-to-end
 
 ```bash
-npm run school                        # cổng 4000
 npm run dev                           # cổng 3000
 ```
+
+Chỉ một lệnh. `NEXT_PUBLIC_SCHOOL_API=/api/school/graphql` nên nhà trường chạy
+ngay trong tiến trình Next qua route nội bộ — `npm run school` (cổng 4000) chỉ
+cần khi muốn chứng minh trường là service tách rời thật, ví dụ lúc quay demo.
 
 Proof server phải đang chạy:
 
