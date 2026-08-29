@@ -404,7 +404,20 @@ async function main() {
 
   const address = deployed.deployTxData.public.contractAddress;
   const txId = deployed.deployTxData.public.txId;
+  const status = deployed.deployTxData.public.status;
   const hex = (id) => `0x${String(id).replace(/^0x/, "")}`;
+
+  // Included in a block is not the same as succeeded. `FailFallible` means the
+  // transaction was accepted and paid for and did not do its job — which reads
+  // as success to anything that only checks for an address coming back.
+  if (status !== "SucceedEntirely") {
+    fail(
+      `the deploy transaction did not succeed — status ${status ?? "unknown"}.\n` +
+        (txId ? `  ${EXPLORER}/transactions/${hex(txId)}\n` : "") +
+        "  Do not put this address in .env.local; there is no usable contract\n" +
+        "  at it. Check the explorer for the reason.",
+    );
+  }
 
   console.log("\n✓ deployed\n");
   console.log(`  contract  ${address}`);
