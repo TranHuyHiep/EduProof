@@ -92,6 +92,9 @@ vài block. Đợi rồi đọc lại trước khi kết luận.
 
 ## Bước 3 — Chạy thử end-to-end
 
+**Đã chạy phần lớn ngày 2026-08-29, trước khi đăng ký issuer.** Còn lại chỉ là
+chạy lại sau khi đăng ký để thấy hai giá trị on-chain đổi.
+
 ```bash
 npm run dev                           # cổng 3000
 ```
@@ -106,26 +109,37 @@ Proof server phải đang chạy:
 docker ps | grep 6300                 # phải là proof-server:8.1.0
 ```
 
-Luồng bắt buộc đi qua, **dùng cả hai sinh viên**:
+### Đã kiểm chứng
 
-| Bước | SV001 (Alice, GPA 3.72) | SV002 (Bob, GPA 2.91) |
-|---|---|---|
-| `/student/login` | đăng nhập | đăng nhập |
-| `/student/create-proof` | *GPA ≥ 3.50* | *GPA ≥ 3.50* |
-| kết quả | **proven** | **not proven** |
-| `/verify/[id]` | mở link chia sẻ | mở link chia sẻ |
+Luồng Bob (SV002, GPA 2.91) với hai mệnh đề, một đúng một sai:
 
-**Kiểm chứng — đây là phần quan trọng nhất:**
+```
+status is active       → proven
+GPA is at least 3.50   → not proven
+```
 
-1. Trang verify hiện **Issuer on chain: registered**
-2. Hiện **Predicates verified by this contract** kèm một con số
-3. `Proving system: midnight`, không phải `mock`
-4. **Không** xuất hiện `3.72`, `2.91`, `372`, `291`, tên thật, hay `SV001`
-   ở bất kỳ đâu trên trang — kể cả trong DevTools → Network
-5. Console không có lỗi đỏ
+| Kiểm | Kết quả |
+|---|---|
+| `chain.ts` chạy trong trình duyệt | ✅ trang verify đọc được ledger thật |
+| Số on-chain khớp baseline đo bằng Node | ✅ `not registered`, `0` |
+| Proof đã lưu (thứ đi kèm link chia sẻ) | ✅ không có `2.91`, `291`, `Bob`, `Tran`, `SV002` |
+| `payload` có chứa GPA không | ✅ không |
+| `provider` | ✅ `midnight`, không phải mock |
+| Lỗi console | ✅ 0 |
 
-Điểm 4 là bất biến số 1 của dự án. Ca Bob quan trọng hơn ca Alice: proof
-**thất bại** cũng không được thu hẹp giá trị bị giấu.
+**Bẫy khi tự kiểm tra riêng tư:** đừng quét mọi key localStorage chứa chữ
+"proof". `eduproof.session.credential` cũng khớp, và nó **được phép** chứa giá
+trị thật — đó là credential của sinh viên trên máy của chính họ. Thứ phải sạch
+là `eduproof.proofs.v1`.
+
+### Còn phải làm sau khi đăng ký issuer
+
+Chạy lại luồng trên, và hai dòng này phải đổi:
+
+```
+Issuer on chain                        not registered  →  registered
+Predicates verified by this contract   0               →  tăng khi có proof
+```
 
 ---
 
