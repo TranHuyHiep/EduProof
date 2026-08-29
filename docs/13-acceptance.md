@@ -11,13 +11,13 @@ Cách làm lại: [12-go-live.md](12-go-live.md).
 
 ```
 contract   89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
-deploy tx  0x0039095faf9e17c65fe65e86ffac18a08a8c0a331d9755a9b6bd81ccf6da5cae64
-issuer tx  0x006bf9b9994604eca4045e32498161e48a19cb07839392c4fb42df8fcb08d36e9a
+deploy tx  0x53a28aeb8e050e068b22ccebcc351cee87c3eb44d3e6fa06ba6695293a4884aa
+issuer tx  0x338c8d6078b3adf81cb1217023bcf272a3ed1bd7640a2151c5cfa4d2546f8759
 ```
 
 - [Contract](https://preprod.midnightexplorer.com/contracts/0x89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729)
-- [Giao dịch deploy](https://preprod.midnightexplorer.com/transactions/0x0039095faf9e17c65fe65e86ffac18a08a8c0a331d9755a9b6bd81ccf6da5cae64)
-- [Giao dịch đăng ký issuer](https://preprod.midnightexplorer.com/transactions/0x006bf9b9994604eca4045e32498161e48a19cb07839392c4fb42df8fcb08d36e9a)
+- [Giao dịch deploy](https://preprod.midnightexplorer.com/transactions/0x53a28aeb8e050e068b22ccebcc351cee87c3eb44d3e6fa06ba6695293a4884aa)
+- [Giao dịch đăng ký issuer](https://preprod.midnightexplorer.com/transactions/0x338c8d6078b3adf81cb1217023bcf272a3ed1bd7640a2151c5cfa4d2546f8759)
 
 Ledger đọc qua `lib/midnight/chain.ts`, so với baseline đo **trước** khi đăng ký:
 
