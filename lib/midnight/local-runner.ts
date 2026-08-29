@@ -6,15 +6,13 @@
 // who is not the holder throws here exactly as it would on chain.
 //
 // What it does not do is submit a transaction. That needs a funded wallet and
-// a deployed contract; see PLAN-MUST-READ-FIRST/06-phase2-midnight.md step 5.
+// a deployed contract; see DEPLOYMENT.md.
 // The distinction is stated plainly in the UI rather than papered over: the
 // circuit's verdict is real, its publication is not yet.
 
-import type {
-  CircuitContext,
-  JubjubPoint,
-  JubjubSchnorrSignature,
-} from "@midnight-ntwrk/compact-runtime";
+import type { CircuitContext, JubjubPoint } from "@midnight-ntwrk/compact-runtime";
+
+import { reduction, type SchnorrSignature } from "./schnorr.ts";
 
 /** The student's private state. Exactly one secret, and it never leaves. */
 export interface StudentPrivateState {
@@ -46,6 +44,14 @@ export class Simulator {
       // The one witness. The runtime calls back into private state for the
       // secret, so no code assembling a transaction ever holds it.
       studentSecretKey: (context) => [context.privateState, context.privateState.studentSk],
+
+      // The circuit hashes the Schnorr challenge itself and asks for it to be
+      // split, because dividing in a circuit is expensive and checking a
+      // division is not. It verifies the split, so this cannot lie.
+      getSchnorrReduction: (context, challengeHash) => [
+        context.privateState,
+        reduction(challengeHash),
+      ],
     });
 
     const state = await contract.initialState(
@@ -55,9 +61,8 @@ export class Simulator {
     return new Simulator(module, contract, state, runtime);
   }
 
-  private context(circuitId: string): CircuitContext<StudentPrivateState> {
+  private context(): CircuitContext<StudentPrivateState> {
     return this.runtime.createCircuitContext<StudentPrivateState>(
-      circuitId,
       this.runtime.dummyContractAddress(),
       COIN_PUBLIC_KEY,
       this.state.currentContractState,
@@ -73,17 +78,17 @@ export class Simulator {
    * rejects on the next call.
    */
   private commit(result: { context: CircuitContext<StudentPrivateState> }): void {
-    const call = result.context.callContext;
-    this.state.currentContractState.data = call.currentQueryContext.state;
-    if (call.currentPrivateState !== undefined) {
-      this.state.currentPrivateState = call.currentPrivateState;
+    const next = result.context;
+    this.state.currentContractState.data = next.currentQueryContext.state;
+    if (next.currentPrivateState !== undefined) {
+      this.state.currentPrivateState = next.currentPrivateState;
     }
   }
 
   /** Publishes a school's key to the local issuer registry. */
   async registerIssuer(schoolIdHash: bigint, issuerPk: JubjubPoint): Promise<void> {
     const result = await this.contract.impureCircuits.registerIssuer(
-      this.context("registerIssuer"),
+      this.context(),
       schoolIdHash,
       issuerPk,
     );
@@ -103,17 +108,23 @@ export class Simulator {
     op: bigint;
     operand: bigint;
     credential: bigint[];
-    signature: JubjubSchnorrSignature;
+    signature: SchnorrSignature;
   }): Promise<boolean> {
     const result = await this.contract.impureCircuits.proveCredentialPredicate(
-      this.context("proveCredentialPredicate"),
+      this.context(),
       args.schoolIdHash,
       args.subject,
       BigInt(args.slot),
       args.op,
       args.operand,
       args.credential,
-      args.signature,
+      {
+        announcement: this.runtime.constructJubjubPoint(
+          args.signature.announcement.x,
+          args.signature.announcement.y,
+        ),
+        response: args.signature.response,
+      },
     );
     this.commit(result);
     return result.result;

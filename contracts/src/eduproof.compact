@@ -1,6 +1,7 @@
-pragma language_version 0.26;
+pragma language_version 0.23;
 
 import CompactStandardLibrary;
+import "./schnorr" prefix schnorr_;
 
 // EduProof — one circuit that proves any predicate over a signed credential.
 //
@@ -151,12 +152,12 @@ export circuit proveCredentialPredicate(
 
   // ── the evidence, never disclosed ──
   credential:   Vector<16, Field>,
-  signature:    JubjubSchnorrSignature
+  signature:    schnorr_SchnorrSignature
 ): Boolean {
   // 1. The issuer is one the ledger knows, and it signed this exact vector.
   assert(issuers.member(disclose(schoolIdHash)), "unknown issuer");
   const issuerPk = issuers.lookup(disclose(schoolIdHash));
-  assert(jubjubSchnorrVerify<16>(credential, signature, issuerPk), "bad issuer signature");
+  schnorr_schnorrVerify<16>(credential, signature, issuerPk);
 
   // 2. The caller holds the secret behind the subject commitment. Without this
   //    a stolen credential would prove just as well as an owned one.

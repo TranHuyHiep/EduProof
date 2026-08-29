@@ -1,0 +1,121 @@
+// JubJub Schnorr verification, written out by hand.
+//
+// This is a polyfill, and a temporary one. The Midnight team is building
+// `jubjubSchnorrVerify` into the Compact standard library; it exists in
+// language 0.26 (toolchain 0.34.0) already. It does NOT exist in language
+// 0.23, which is what toolchain 0.31.1 speaks — and 0.31.1 is what the support
+// matrix pins Preprod to, because Preprod runs ledger 8.
+//
+// Compiling with 0.34.0 instead is not an option: those artifacts assert
+// `checkRuntimeVersion('0.19.0')`, whose runtime depends on onchain-runtime-v4
+// (ledger 9), while every transaction-building path in midnight-js 4.1.1 runs
+// on ledger-v8. Ledger 9 has no migration from ledger 8 and is not deployed to
+// any public network. So: hand-rolled, until the built-in lands on a ledger
+// Preprod actually runs.
+//
+// See MIDNIGHT-SUPPORT-ISSUE.md for the full version analysis.
+//
+// The verification equation is the standard one:
+//
+//     s·G == R + c·pk
+//
+// where R is the announcement, s the response, and c the challenge bound to
+// the message, the announcement and the public key.
+
+module schnorr {
+
+import CompactStandardLibrary;
+
+/**
+ * A Schnorr signature: the announcement point R, and the response scalar s.
+ */
+export struct SchnorrSignature {
+  announcement: JubjubPoint;
+  response: Field;
+}
+
+/**
+ * What the challenge hash commits to.
+ *
+ * The public key and the announcement are in here alongside the message, not
+ * just the message. Binding all three is what stops a signature being lifted
+ * onto a different key or a different announcement.
+ */
+struct SchnorrHashInput<#n> {
+  ann_x: Field;
+  ann_y: Field;
+  pk_x: Field;
+  pk_y: Field;
+  msg: Vector<n, Field>;
+}
+
+/**
+ * Splits the challenge hash into a quotient and a 248-bit remainder.
+ *
+ * The circuit does not trust this: it is a witness, so the prover supplies the
+ * split and the circuit *checks* it below. Division is expensive in a circuit
+ * and verifying a division is cheap, which is the whole reason this is a
+ * witness rather than an operation.
+ */
+witness getSchnorrReduction(challengeHash: Field): [Uint<7>, Uint<248>];
+
+/**
+ * Verifies a Schnorr signature over `msg`. Asserts; returns nothing.
+ *
+ * Why the challenge is truncated at all: `transientHash` returns an element of
+ * the BLS12-381 scalar field, which is 255 bits, but a JubJub scalar has to be
+ * below the curve order, which is 252 bits. Multiplying by an over-large
+ * scalar is not a well-defined group operation, so the challenge is cut to
+ * 248 bits — comfortably under the order, and the reduction is proven correct
+ * rather than assumed.
+ */
+export circuit schnorrVerify<#n>(
+  msg: Vector<n, Field>,
+  signature: SchnorrSignature,
+  pk: JubjubPoint
+): [] {
+  const announcement = signature.announcement;
+  const response = signature.response;
+
+  const cFull: Field = transientHash<SchnorrHashInput<n>>(SchnorrHashInput<n> {
+    ann_x: jubjubPointX(announcement),
+    ann_y: jubjubPointY(announcement),
+    pk_x: jubjubPointX(pk),
+    pk_y: jubjubPointY(pk),
+    msg: msg
+  });
+
+  // 2^248.
+  const TWO_248: Field =
+    452312848583266388373324160190187140051835877600158453279131187530910662656 as Field;
+
+  // The prover's claimed split, then the two checks that make it binding.
+  const reduction = getSchnorrReduction(cFull);
+  const q = reduction[0];
+  const cTruncated = reduction[1];
+
+  // The largest field element divided by 2^248 is 115, so any honest quotient
+  // is below 116. Without this bound the reconstruction below could be
+  // satisfied by wrapping around the field.
+  assert(disclose(q) < 116, "Schnorr quotient out of range");
+
+  // And the split has to actually reconstruct the hash. Together with the
+  // bound above, this pins cTruncated to exactly the low 248 bits of cFull.
+  assert(
+    (disclose(q) as Field) * TWO_248 + (disclose(cTruncated) as Field) == cFull,
+    "Invalid challenge reduction"
+  );
+
+  const c: Field = disclose(cTruncated) as Field;
+
+  // s·G == R + c·pk
+  const lhs: JubjubPoint = ecMulGenerator(response);
+  const rhs: JubjubPoint = ecAdd(announcement, ecMul(pk, c));
+
+  assert(
+    jubjubPointX(lhs) == jubjubPointX(rhs) && jubjubPointY(lhs) == jubjubPointY(rhs),
+    "bad issuer signature"
+  );
+}
+
+}

@@ -3,13 +3,15 @@ import type * as __compactRuntime from '@midnight-ntwrk/compact-runtime';
 export enum Operator { EQ = 0, NEQ = 1, GTE = 2, GT = 3, LTE = 4, LT = 5 }
 
 export type Witnesses<PS> = {
+  getSchnorrReduction(context: __compactRuntime.WitnessContext<Ledger, PS>,
+                      challengeHash_0: bigint): [PS, [bigint, bigint]];
   studentSecretKey(context: __compactRuntime.WitnessContext<Ledger, PS>): [PS, bigint];
 }
 
 export type ImpureCircuits<PS> = {
   registerIssuer(context: __compactRuntime.CircuitContext<PS>,
                  schoolIdHash_0: bigint,
-                 issuerPk_0: __compactRuntime.JubjubPoint): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                 issuerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
   proveCredentialPredicate(context: __compactRuntime.CircuitContext<PS>,
                            schoolIdHash_0: bigint,
                            subject_0: bigint,
@@ -19,13 +21,13 @@ export type ImpureCircuits<PS> = {
                            credential_0: bigint[],
                            signature_0: { announcement: __compactRuntime.JubjubPoint,
                                           response: bigint
-                                        }): Promise<__compactRuntime.CircuitResults<PS, boolean>>;
+                                        }): __compactRuntime.CircuitResults<PS, boolean>;
 }
 
 export type ProvableCircuits<PS> = {
   registerIssuer(context: __compactRuntime.CircuitContext<PS>,
                  schoolIdHash_0: bigint,
-                 issuerPk_0: __compactRuntime.JubjubPoint): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                 issuerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
   proveCredentialPredicate(context: __compactRuntime.CircuitContext<PS>,
                            schoolIdHash_0: bigint,
                            subject_0: bigint,
@@ -35,7 +37,7 @@ export type ProvableCircuits<PS> = {
                            credential_0: bigint[],
                            signature_0: { announcement: __compactRuntime.JubjubPoint,
                                           response: bigint
-                                        }): Promise<__compactRuntime.CircuitResults<PS, boolean>>;
+                                        }): __compactRuntime.CircuitResults<PS, boolean>;
 }
 
 export type PureCircuits = {
@@ -45,8 +47,8 @@ export type PureCircuits = {
 export type Circuits<PS> = {
   registerIssuer(context: __compactRuntime.CircuitContext<PS>,
                  schoolIdHash_0: bigint,
-                 issuerPk_0: __compactRuntime.JubjubPoint): Promise<__compactRuntime.CircuitResults<PS, []>>;
-  subjectCommitment(context: __compactRuntime.CircuitContext<PS>, sk_0: bigint): Promise<__compactRuntime.CircuitResults<PS, bigint>>;
+                 issuerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
+  subjectCommitment(context: __compactRuntime.CircuitContext<PS>, sk_0: bigint): __compactRuntime.CircuitResults<PS, bigint>;
   proveCredentialPredicate(context: __compactRuntime.CircuitContext<PS>,
                            schoolIdHash_0: bigint,
                            subject_0: bigint,
@@ -56,7 +58,7 @@ export type Circuits<PS> = {
                            credential_0: bigint[],
                            signature_0: { announcement: __compactRuntime.JubjubPoint,
                                           response: bigint
-                                        }): Promise<__compactRuntime.CircuitResults<PS, boolean>>;
+                                        }): __compactRuntime.CircuitResults<PS, boolean>;
 }
 
 export type Ledger = {
@@ -80,9 +82,8 @@ export declare class Contract<PS = any, W extends Witnesses<PS> = Witnesses<PS>>
   impureCircuits: ImpureCircuits<PS>;
   provableCircuits: ProvableCircuits<PS>;
   constructor(witnesses: W);
-  initialState(context: __compactRuntime.ConstructorContext<PS>): Promise<__compactRuntime.ConstructorResult<PS>>;
+  initialState(context: __compactRuntime.ConstructorContext<PS>): __compactRuntime.ConstructorResult<PS>;
 }
 
 export declare function ledger(state: __compactRuntime.StateValue | __compactRuntime.ChargedState): Ledger;
 export declare const pureCircuits: PureCircuits;
-export declare const expectedVk: Record<string, string>;

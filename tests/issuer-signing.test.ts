@@ -6,18 +6,10 @@
 // makes it usable at all — that the key survives a restart.
 
 import { describe, expect, it } from "vitest";
-import {
-  CompactTypeField,
-  CompactTypeVector,
-  constructJubjubPoint,
-  jubjubSchnorrVerify,
-  jubjubSchnorrVerifyingKey,
-} from "@midnight-ntwrk/compact-runtime";
+import { publicKeyOf, verify } from "@/lib/midnight/schnorr";
 import { circuitPublicKey, circuitSigningKey, signFieldVector } from "@/lib/school/keys";
 import { toCircuitVector } from "@/lib/midnight/encoding";
 import type { CredentialBody } from "@/lib/school/types";
-
-const TYPE = new CompactTypeVector(16, CompactTypeField);
 
 const body: CredentialBody = {
   schema: "eduproof/credential/v1",
@@ -36,14 +28,7 @@ const body: CredentialBody = {
 };
 
 async function verifyingKey() {
-  return jubjubSchnorrVerifyingKey(await circuitSigningKey());
-}
-
-function asSignature(sig: Awaited<ReturnType<typeof signFieldVector>>) {
-  return {
-    announcement: constructJubjubPoint(sig.announcement.x, sig.announcement.y),
-    response: sig.response,
-  };
+  return publicKeyOf(await circuitSigningKey());
 }
 
 describe("the issuer key is stable", () => {
@@ -75,7 +60,7 @@ describe("a signature over the credential vector", () => {
   it("verifies against the published issuer key", async () => {
     const vector = toCircuitVector(body, 12345n);
     const sig = await signFieldVector(vector);
-    expect(jubjubSchnorrVerify(TYPE, vector, await verifyingKey(), asSignature(sig))).toBe(true);
+    expect(await verify(vector, sig, await verifyingKey())).toBe(true);
   });
 
   it("fails once any attribute is rewritten", async () => {
@@ -85,22 +70,22 @@ describe("a signature over the credential vector", () => {
     const sig = await signFieldVector(vector);
     const raised = { ...body, attributes: { ...body.attributes, gpaScaled: 400 } };
     expect(
-      jubjubSchnorrVerify(TYPE, toCircuitVector(raised, 12345n), await verifyingKey(), asSignature(sig)),
+      await verify(toCircuitVector(raised, 12345n), sig, await verifyingKey()),
     ).toBe(false);
   });
 
   it("fails when presented under a different subject", async () => {
     const sig = await signFieldVector(toCircuitVector(body, 12345n));
     expect(
-      jubjubSchnorrVerify(TYPE, toCircuitVector(body, 99999n), await verifyingKey(), asSignature(sig)),
+      await verify(toCircuitVector(body, 99999n), sig, await verifyingKey()),
     ).toBe(false);
   });
 
   it("does not verify against another school's key", async () => {
     const vector = toCircuitVector(body, 12345n);
     const sig = await signFieldVector(vector);
-    const other = jubjubSchnorrVerifyingKey(7654321n);
-    expect(jubjubSchnorrVerify(TYPE, vector, other, asSignature(sig))).toBe(false);
+    const other = await publicKeyOf(7654321n);
+    expect(await verify(vector, sig, other)).toBe(false);
   });
 
   it("is randomised, so two signatures over the same credential differ", async () => {
@@ -110,7 +95,7 @@ describe("a signature over the credential vector", () => {
     const a = await signFieldVector(vector);
     const b = await signFieldVector(vector);
     expect(a.announcement).not.toEqual(b.announcement);
-    expect(jubjubSchnorrVerify(TYPE, vector, await verifyingKey(), asSignature(a))).toBe(true);
-    expect(jubjubSchnorrVerify(TYPE, vector, await verifyingKey(), asSignature(b))).toBe(true);
+    expect(await verify(vector, a, await verifyingKey())).toBe(true);
+    expect(await verify(vector, b, await verifyingKey())).toBe(true);
   });
 });

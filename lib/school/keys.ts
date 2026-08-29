@@ -72,6 +72,14 @@ export function signCanonical(canonical: string): string {
 //
 // The JSON signature is what a conventional integrator checks. The JubJub
 // signature is what the circuit checks. Neither replaces the other.
+//
+// Schnorr is written out by hand here for the same reason it is in
+// contracts/src/schnorr.compact: `jubjubSchnorrSign` does not exist in
+// compact-runtime 0.16.0, which is the runtime ledger 8 — and therefore
+// Preprod — requires. See docs/lessons.md.
+//
+// Signing and verification must agree exactly, so both sides build the
+// challenge the same way and out of the same primitives.
 
 /**
  * The JubJub signing scalar, derived from the configured Ed25519 key.
@@ -81,18 +89,17 @@ export function signCanonical(canonical: string): string {
  */
 export async function circuitSigningKey(): Promise<bigint> {
   const { createHash } = await import("node:crypto");
-  const { JUBJUB_SCALAR_MODULUS } = await import("@midnight-ntwrk/compact-runtime");
+  const { JUBJUB_SCALAR_ORDER } = await import("../midnight/schnorr.ts");
 
   const seed = process.env.SCHOOL_SIGNING_KEY ?? issuerPublicKey();
   const digest = createHash("sha512").update(`eduproof/jubjub/v1:${seed}`).digest("hex");
-  return (BigInt(`0x${digest}`) % (JUBJUB_SCALAR_MODULUS - 1n)) + 1n;
+  return (BigInt(`0x${digest}`) % (JUBJUB_SCALAR_ORDER - 1n)) + 1n;
 }
 
 /** The public half, as the on-chain issuer registry holds it. */
 export async function circuitPublicKey(): Promise<{ x: bigint; y: bigint }> {
-  const { jubjubSchnorrVerifyingKey } = await import("@midnight-ntwrk/compact-runtime");
-  const pk = jubjubSchnorrVerifyingKey(await circuitSigningKey());
-  return { x: pk.x, y: pk.y };
+  const { publicKeyOf } = await import("../midnight/schnorr.ts");
+  return publicKeyOf(await circuitSigningKey());
 }
 
 /**
@@ -104,16 +111,6 @@ export async function circuitPublicKey(): Promise<{ x: bigint; y: bigint }> {
 export async function signFieldVector(
   vector: bigint[]
 ): Promise<{ announcement: { x: bigint; y: bigint }; response: bigint }> {
-  const { CompactTypeField, CompactTypeVector, jubjubSchnorrSign } = await import(
-    "@midnight-ntwrk/compact-runtime"
-  );
-  const sig = jubjubSchnorrSign(
-    new CompactTypeVector(vector.length, CompactTypeField),
-    vector,
-    await circuitSigningKey()
-  );
-  return {
-    announcement: { x: sig.announcement.x, y: sig.announcement.y },
-    response: sig.response,
-  };
+  const { sign } = await import("../midnight/schnorr.ts");
+  return sign(vector, await circuitSigningKey());
 }

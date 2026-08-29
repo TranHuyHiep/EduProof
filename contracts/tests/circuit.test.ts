@@ -32,16 +32,16 @@ let school: School;
 let sim: Simulator;
 let subject: bigint;
 let credential: bigint[];
-let signature: ReturnType<School["sign"]>;
+let signature: Awaited<ReturnType<School["sign"]>>;
 
 beforeEach(async () => {
-  school = new School();
+  school = await School.create();
   sim = await Simulator.create({ studentSk: STUDENT_SK });
   await sim.registerIssuer(SCHOOL_ID_HASH, school.pk);
 
   subject = subjectCommitment(STUDENT_SK);
   credential = aliceCredential(subject);
-  signature = school.sign(credential);
+  signature = await school.sign(credential);
 });
 
 /** Runs the main circuit with everything valid except what a test overrides. */
@@ -140,8 +140,8 @@ describe("a credential must come from a registered issuer", () => {
   });
 
   it("refuses a signature from a different school", async () => {
-    const impostor = new School();
-    await expect(prove({ signature: impostor.sign(credential) }))
+    const impostor = await School.create();
+    await expect(prove({ signature: await impostor.sign(credential) }))
       .rejects.toThrow(/bad issuer signature/i);
   });
 
@@ -150,7 +150,7 @@ describe("a credential must come from a registered issuer", () => {
     // against school B's registry entry.
     const forged = [...credential];
     forged[SLOT.SCHOOL_ID] = 0x9999n;
-    await expect(prove({ credential: forged, signature: school.sign(forged) }))
+    await expect(prove({ credential: forged, signature: await school.sign(forged) }))
       .rejects.toThrow(/issuer mismatch/i);
   });
 });
@@ -171,10 +171,10 @@ describe("the credential must not have been altered", () => {
   });
 
   it("refuses a credential re-signed by the holder", async () => {
-    const forger = new School();
+    const forger = await School.create();
     const tampered = [...credential];
     tampered[SLOT.GPA_SCALED] = 400n;
-    await expect(prove({ credential: tampered, signature: forger.sign(tampered) }))
+    await expect(prove({ credential: tampered, signature: await forger.sign(tampered) }))
       .rejects.toThrow(/bad issuer signature/i);
   });
 });
@@ -197,7 +197,7 @@ describe("only the holder can use a credential", () => {
     const bobSubject = subjectCommitment(777n);
     const bobCredential = aliceCredential(bobSubject);
     await expect(
-      prove({ credential: bobCredential, signature: school.sign(bobCredential) }),
+      prove({ credential: bobCredential, signature: await school.sign(bobCredential) }),
     ).rejects.toThrow(/subject mismatch/i);
   });
 

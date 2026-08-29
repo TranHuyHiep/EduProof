@@ -13,17 +13,23 @@
 import {
   CompactTypeField,
   CompactTypeVector,
+  constructJubjubPoint,
   createCircuitContext,
   createConstructorContext,
   dummyContractAddress,
-  jubjubSchnorrSign,
-  jubjubSchnorrVerifyingKey,
-  sampleJubjubSchnorrSk,
   transientHash,
   type CircuitContext,
   type JubjubPoint,
-  type JubjubSchnorrSignature,
 } from "@midnight-ntwrk/compact-runtime";
+
+import {
+  JUBJUB_SCALAR_ORDER,
+  fullChallenge,
+  publicKeyOf,
+  reduction,
+  sign as schnorrSign,
+  type SchnorrSignature,
+} from "../../lib/midnight/schnorr.ts";
 
 import {
   Contract,
@@ -51,14 +57,32 @@ const COIN_PUBLIC_KEY = "0".repeat(64);
 export class School {
   readonly sk: bigint;
   readonly pk: JubjubPoint;
+  /** The public key as plain coordinates — what the challenge hash reads. */
+  readonly pkCoords: { x: bigint; y: bigint };
 
-  constructor() {
-    this.sk = sampleJubjubSchnorrSk();
-    this.pk = jubjubSchnorrVerifyingKey(this.sk);
+  private constructor(sk: bigint, pkCoords: { x: bigint; y: bigint }) {
+    this.sk = sk;
+    this.pkCoords = pkCoords;
+    this.pk = constructJubjubPoint(pkCoords.x, pkCoords.y);
   }
 
-  sign(credential: bigint[]): JubjubSchnorrSignature {
-    return jubjubSchnorrSign(CREDENTIAL_TYPE, credential, this.sk);
+  /**
+   * Sampled per test run, so no fixture can come to depend on a fixed key.
+   *
+   * Async because the Schnorr helpers are: they load the runtime lazily so the
+   * WASM is not pulled in by modules that never sign anything.
+   */
+  static async create(): Promise<School> {
+    const bytes = new Uint8Array(64);
+    crypto.getRandomValues(bytes);
+    let value = 0n;
+    for (const byte of bytes) value = (value << 8n) | BigInt(byte);
+    const sk = (value % (JUBJUB_SCALAR_ORDER - 1n)) + 1n;
+    return new School(sk, await publicKeyOf(sk));
+  }
+
+  sign(credential: bigint[]): Promise<SchnorrSignature> {
+    return schnorrSign(credential, this.sk);
   }
 }
 
@@ -93,6 +117,15 @@ export class Simulator {
       // proving time. It never appears in a circuit argument, so no code that
       // builds a transaction ever holds it.
       studentSecretKey: (context) => [context.privateState, context.privateState.studentSk],
+
+      // The circuit hashes the challenge itself, then asks the prover to split
+      // it — division is expensive in a circuit, checking a division is cheap.
+      // The circuit verifies q·2^248 + rest == challengeHash with q < 116, so
+      // supplying a wrong split fails there rather than proving anything.
+      getSchnorrReduction: (context, challengeHash) => [
+        context.privateState,
+        reduction(challengeHash),
+      ],
     });
     const state = await contract.initialState(
       createConstructorContext(privateState, COIN_PUBLIC_KEY),
@@ -113,9 +146,8 @@ export class Simulator {
     this.state = { ...this.state, currentPrivateState: privateState };
   }
 
-  private context(circuitId: string): CircuitContext<StudentPrivateState> {
+  private context(): CircuitContext<StudentPrivateState> {
     return createCircuitContext<StudentPrivateState>(
-      circuitId,
       dummyContractAddress(),
       COIN_PUBLIC_KEY,
       this.state.currentContractState,
@@ -132,16 +164,16 @@ export class Simulator {
    * object the runtime refuses on the next call.
    */
   private commit(result: { context: CircuitContext<StudentPrivateState> }): void {
-    const call = result.context.callContext;
-    this.state.currentContractState.data = call.currentQueryContext.state;
-    if (call.currentPrivateState !== undefined) {
-      this.state.currentPrivateState = call.currentPrivateState;
+    const next = result.context;
+    this.state.currentContractState.data = next.currentQueryContext.state;
+    if (next.currentPrivateState !== undefined) {
+      this.state.currentPrivateState = next.currentPrivateState;
     }
   }
 
   async registerIssuer(schoolIdHash: bigint, issuerPk: JubjubPoint): Promise<void> {
     const result = await this.contract.impureCircuits.registerIssuer(
-      this.context("registerIssuer"),
+      this.context(),
       schoolIdHash,
       issuerPk,
     );
@@ -155,17 +187,23 @@ export class Simulator {
     op: number | bigint;
     operand: bigint;
     credential: bigint[];
-    signature: JubjubSchnorrSignature;
+    signature: SchnorrSignature;
   }): Promise<boolean> {
     const result = await this.contract.impureCircuits.proveCredentialPredicate(
-      this.context("proveCredentialPredicate"),
+      this.context(),
       args.schoolIdHash,
       args.subject,
       BigInt(args.slot),
       BigInt(args.op),
       args.operand,
       args.credential,
-      args.signature,
+      {
+        announcement: constructJubjubPoint(
+          args.signature.announcement.x,
+          args.signature.announcement.y,
+        ),
+        response: args.signature.response,
+      },
     );
     this.commit(result);
     return result.result;
