@@ -8,9 +8,21 @@ import { ATTRIBUTES, proofProvider } from "@/lib/proof";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { NETWORK, explorerContractUrl, midnightConfig } from "@/lib/midnight/config";
 import type { VerificationResult } from "@/types";
+import { issuerBadge } from "@/lib/issuer-badge";
 
 /** Attributes a proof deliberately does not carry, whichever claims it makes. */
 const ALWAYS_WITHHELD = ["Full name", "Student ID", "Complete transcript"];
+
+/**
+ * The contract address, shortened for a table but still identifiable.
+ *
+ * Shown as text so a verifier can match it against the address the explorer
+ * link opens, rather than following a link and trusting where it lands.
+ */
+function contractLabel(): string {
+  const address = midnightConfig.contractAddress.replace(/^0x/, "");
+  return address ? `${address.slice(0, 10)}\u2026${address.slice(-6)}` : "not configured";
+}
 
 /**
  * The public verifier view. No account, no login.
@@ -129,7 +141,10 @@ export default function VerifyProofPage({
             <div className="text-[15px] text-ink">{proof.issuer.schoolName}</div>
             <div className="mono mt-1 text-xs text-ink-faint">{proof.issuer.keyId}</div>
           </div>
-          {proof.issuer.verified && <Tag tone="proven">Verified issuer</Tag>}
+          {(() => {
+            const badge = issuerBadge(onChain, proof.issuer.verified);
+            return badge && <Tag tone={badge.tone}>{badge.label}</Tag>;
+          })()}
         </div>
       </section>
 
@@ -158,25 +173,39 @@ export default function VerifyProofPage({
           <div className="rule-soft mt-6 border-t pt-4">
             {onChain.available ? (
               <>
-                <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
+                <h3 className="eyebrow pb-1">On the {NETWORK} chain</h3>
+                <dl className="rows pt-1">
                   <Entry
-                    label="Issuer on chain"
-                    value={onChain.issuerRegistered ? "registered" : "not registered"}
+                    label="This proof's issuer"
+                    value={onChain.issuerRegistered ? "in the registry" : "not in the registry"}
                   />
                   <Entry
-                    label="Predicates verified by this contract"
-                    value={onChain.proofsVerified ?? "—"}
+                    label="Institutions in the registry"
+                    value={onChain.issuerCount ?? "—"}
                   />
+                  <Entry label="Contract" value={contractLabel()} mono />
+                  <Entry label="Network" value={NETWORK} />
                 </dl>
+                {/*
+                  `proofsVerified` is a counter the circuit increments, and in
+                  Wave 1 it is always 0: proving runs against a local proof
+                  server and verification only reads the chain. Printed bare
+                  next to "2 of 2 proven" it read as a contradiction — the one
+                  number on the page a verifier was likely to misread as
+                  failure. It is stated as a design fact or not at all.
+                */}
                 <p className="pt-3 text-xs leading-relaxed text-ink-faint">
-                  Read from the contract's public ledger on {NETWORK} —{" "}
+                  The contract's registry is what makes the issuer above
+                  checkable by anyone. Proving itself happens on this device —
+                  the statements are not submitted as transactions, so the
+                  contract's own counter stands at {onChain.proofsVerified ?? "0"}.{" "}
                   <a
                     className="underline underline-offset-2 hover:text-ink"
                     href={onChain.explorerUrl ?? explorerContractUrl() ?? undefined}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    look it up on the block explorer
+                    Read the ledger on the block explorer
                   </a>
                   .
                 </p>

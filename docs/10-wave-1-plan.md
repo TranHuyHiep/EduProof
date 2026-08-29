@@ -48,11 +48,11 @@ compile thành công, nếu không bị loại thẳng.
 
 ```
 contract  89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
-tx        0039095faf9e17c65fe65e86ffac18a08a8c0a331d9755a9b6bd81ccf6da5cae64
+tx        53a28aeb8e050e068b22ccebcc351cee87c3eb44d3e6fa06ba6695293a4884aa
 ```
 
 - [Contract trên explorer](https://preprod.midnightexplorer.com/contracts/0x89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729)
-- [Giao dịch deploy](https://preprod.midnightexplorer.com/transactions/0x0039095faf9e17c65fe65e86ffac18a08a8c0a331d9755a9b6bd81ccf6da5cae64)
+- [Giao dịch deploy](https://preprod.midnightexplorer.com/transactions/0x53a28aeb8e050e068b22ccebcc351cee87c3eb44d3e6fa06ba6695293a4884aa)
 
 Kiểm chứng bất cứ lúc nào — script hỏi indexer, không đọc lại lời script deploy:
 
@@ -64,9 +64,10 @@ Contract build cho **ledger 8** (toolchain 0.31.1) vì preprod chạy ledger 8.
 
 Các bước còn lại để chạy thật: [12-go-live.md](12-go-live.md).
 
-**Nút thắt đã biết:** dust wallet sync từ genesis (~1.46 triệu index, khoảng
-2.5 giờ) và **không lưu state giữa các lần chạy**. Mỗi transaction mới là một
-lần sync lại từ đầu. Chi tiết: [22-lessons.md](22-lessons.md).
+**Nút thắt đã xử lý:** dust wallet sync từ genesis (~1.46 triệu index, khoảng
+2.5 giờ) và testkit **không lưu state giữa các lần chạy**. Đã thêm checkpoint
+(`scripts/lib/wallet-restore.mjs`): lần sync đầu vẫn lâu, các lần sau khôi phục
+dưới một phút. Chi tiết: [22-lessons.md](22-lessons.md).
 
 ---
 

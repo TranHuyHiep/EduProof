@@ -75,6 +75,66 @@ async function main() {
   }
 
   console.log(`\n  explorer  ${explorerContractUrl()}\n`);
+
+  await checkDocLinks();
+}
+
+/**
+ * Opens every explorer link the docs advertise.
+ *
+ * Worth its own check because a stale link is invisible from the inside: the
+ * deploy succeeded, the indexer agrees, `contract:verify` passes, and the doc
+ * still points at a transaction from a superseded deploy. The only symptom is
+ * a judge clicking through to a 404.
+ *
+ * That has already happened once — docs/10-wave-1-plan.md kept the tx id of an
+ * earlier deploy, 66 hex characters where a real one is 64.
+ */
+async function checkDocLinks() {
+  const files = ["README.md", "docs/10-wave-1-plan.md", "docs/11-wave-1-features.md", "docs/13-acceptance.md"];
+  const links = new Map();
+
+  for (const file of files) {
+    let text;
+    try {
+      text = readFileSync(file, "utf8");
+    } catch {
+      continue; // A doc that does not exist advertises nothing.
+    }
+    for (const [url] of text.matchAll(/https:\/\/preprod\.midnightexplorer\.com\/\S*?(?=[)\s,]|$)/g)) {
+      if (!links.has(url)) links.set(url, file);
+    }
+  }
+
+  if (links.size === 0) return;
+
+  console.log("Explorer links in docs\n");
+
+  for (const [url, file] of links) {
+    // Length before network: an id of the wrong size is malformed regardless
+    // of what the explorer happens to answer today.
+    const id = url.split("/").pop().replace(/^0x/, "");
+    if (!/^[0-9a-f]{64}$/i.test(id)) {
+      fail(`${file} — id is ${id.length} hex characters, expected 64: ${url}`);
+      continue;
+    }
+
+    try {
+      const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(20000) });
+      if (res.ok) pass(`${file} — ${res.status} ${short(url)}`);
+      else fail(`${file} — ${res.status} ${url}`);
+    } catch (error) {
+      // A network failure is not a broken link; say so rather than failing.
+      console.log(`  ? ${file} — could not reach the explorer (${error?.message ?? error})`);
+    }
+  }
+
+  console.log("");
+}
+
+/** Explorer URLs are mostly a 64-character id; show enough to tell them apart. */
+function short(url) {
+  return url.replace(/(0x[0-9a-f]{8})[0-9a-f]+/i, "$1\u2026");
 }
 
 main().catch((error) => {
