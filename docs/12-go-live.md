@@ -67,13 +67,26 @@ truyền tay. Script dừng ngay nếu `SCHOOL_SIGNING_KEY` chưa có trong
 không lấy lại được, và mọi proof sau đó đều hỏng vì contract giữ một khoá
 không ký gì cả.
 
-**Kiểm chứng:**
+**Kiểm chứng — so với baseline đo trước khi đăng ký:**
+
+| Đọc từ chain | Trước | Sau (phải là) |
+|---|---|---|
+| `issuerCount` | 0 | **1** |
+| `issuerRegistered(3226085635)` | `false` | **`true`** |
+
+`3226085635` là `hashToField("hanoi-university")` — cùng giá trị mà app tra
+cứu và circuit đọc từ credential, có test khoá
+(`tests/issuer-identity.test.ts`).
 
 ```bash
-npm run contract:verify      # issuerCount ≥ 1
+npm run contract:verify
 ```
 
 Trang verify phải hiện *Issuer on chain: **registered***.
+
+Nếu số không đổi: transaction có thể đã vào block nhưng thất bại
+(`FailFallible`) — script đã kiểm `TxStatus` nên sẽ báo, hoặc indexer còn trễ
+vài block. Đợi rồi đọc lại trước khi kết luận.
 
 ---
 
