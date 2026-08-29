@@ -157,10 +157,18 @@ describe("the proof discloses nothing the mock would not", () => {
       owner: WALLET,
     });
 
-    expect(Object.keys(proof).sort()).toEqual([
-      "claims", "createdAt", "expiresAt", "issuer", "owner", "payload",
-      "proofId", "provider", "subject", "version", "withheldAttributes",
-    ]);
+    // Compared against the mock's actual output rather than a list written
+    // here: a hardcoded list has to be edited whenever `Proof` gains a field,
+    // and editing it is exactly how the two providers would be allowed to
+    // drift apart while this test stayed green.
+    const { MockProofProvider } = await import("@/lib/proof/mock-provider");
+    const mockProof = await new MockProofProvider().generateProof({
+      student,
+      claims: [{ attribute: "status", operator: "==", operand: "active" }],
+      owner: WALLET,
+    });
+
+    expect(Object.keys(proof).sort()).toEqual(Object.keys(mockProof).sort());
   });
 });
 
