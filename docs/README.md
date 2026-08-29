@@ -23,6 +23,7 @@ thêm file mới không phải đánh số lại cả thư mục.
 | 10 | [10-wave-1-plan.md](10-wave-1-plan.md) | **Việc tiếp theo**, trạng thái, quyết định đã chốt |
 | 11 | [11-wave-1-features.md](11-wave-1-features.md) | Hệ thống hiện làm được gì |
 | 12 | [12-go-live.md](12-go-live.md) | Đưa lên preprod — làm theo từng bước, có cách kiểm chứng |
+| 13 | [13-acceptance.md](13-acceptance.md) | Biên bản nghiệm thu — đã chạy thử những gì, kết quả đo được |
 
 ## 2x — Nền tảng kỹ thuật
 

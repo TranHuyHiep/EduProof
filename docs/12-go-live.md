@@ -9,16 +9,20 @@ Link và endpoint: [23-references.md](23-references.md).
 
 ---
 
-## Trạng thái
+## Trạng thái — **xong toàn bộ**
 
 | Bước | Tình trạng |
 |---|---|
-| 0 — Deploy | ✅ **xong** — `89975419a1a887b6f4d74d91…` |
-| 1 — Đặt biến env | ✅ **xong** — indexer đã xác nhận |
-| 2 — Đăng ký issuer | ⏳ **đang chạy** (sync ~2.5 giờ) |
-| 3 — Chạy thử end-to-end | chờ bước 2 |
-| 4 — Cập nhật tài liệu | ✅ xong |
-| 5 — Chốt cổng chất lượng | chờ bước 3 |
+| 0 — Deploy | ✅ `89975419a1a887b6f4d74d91…` |
+| 1 — Đặt biến env | ✅ indexer xác nhận |
+| 2 — Đăng ký issuer | ✅ `issuerCount` 0 → 1 |
+| 3 — Chạy thử end-to-end | ✅ [13-acceptance.md](13-acceptance.md) |
+| 4 — Cập nhật tài liệu | ✅ |
+| 5 — Chốt cổng chất lượng | ✅ 251 test, boundaries, build, tsc |
+
+Kết quả đo được: [13-acceptance.md](13-acceptance.md).
+
+Chỉ còn việc của chủ dự án: repo public + topic `midnightntwrk`, slide, video.
 
 ---
 

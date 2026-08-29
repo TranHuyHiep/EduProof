@@ -14,7 +14,7 @@ Cập nhật: 2026-08-29
 | 2 | Slide deck | chủ dự án | 10% rubric |
 | 3 | Video demo 3–5 phút | chủ dự án | cùng 10% đó |
 
-**Đang chạy nền:** deploy contract lên preprod. Xem [Trạng thái deploy](#trạng-thái-deploy).
+**Phần code đã xong hết.** Contract sống trên preprod, issuer đã đăng ký, đã chạy thử toàn bộ trên UI — [13-acceptance.md](13-acceptance.md).
 
 Không còn việc code nào bắt buộc cho Wave 1.
 
