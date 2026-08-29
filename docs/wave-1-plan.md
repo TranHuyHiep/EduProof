@@ -52,14 +52,20 @@ npm run wallet:register-dust   đăng ký NIGHT sinh DUST (nếu chưa)
 npm run contract:deploy   deploy, hỏi xác nhận trước khi ghi lên chain
 ```
 
-Sau khi deploy xong, đặt địa chỉ vào `.env.local`:
+Sau khi deploy xong, đặt **cả hai** biến vào `.env.local`:
 
 ```
+NEXT_PUBLIC_PROOF_PROVIDER=midnight     ← thiếu cái này thì vẫn chạy mock
 NEXT_PUBLIC_CONTRACT_ADDRESS=<địa chỉ>
 ```
 
-Trong khi biến này rỗng, phần xác minh on-chain tự nói là chưa có, thay vì hiện
-một dấu tick vô nghĩa.
+Quên biến đầu là lỗi dễ mắc: contract đã lên chain nhưng app vẫn chạy mock, nên
+link tới block explorer không hiện ra và công deploy coi như không thấy được.
+
+Khi có đủ hai biến, banner đổi thành *"the contract is deployed to preprod"* kèm
+link, và trang verify thêm dòng mời tra cứu trên explorer. Trong khi
+`NEXT_PUBLIC_CONTRACT_ADDRESS` còn rỗng, phần xác minh on-chain tự nói là chưa
+có, thay vì hiện một dấu tick vô nghĩa.
 
 **Nút thắt đã biết:** dust wallet sync từ genesis (~1.46 triệu index, khoảng
 90 phút). Fee balancer tiêu từ view local nên phải đợi sync xong, dù trên chain

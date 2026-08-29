@@ -400,8 +400,14 @@ async function main() {
   console.log(`  tx        ${txId}`);
   console.log(`\n  explorer  ${EXPLORER}/contracts/${hex(address)}`);
   console.log(`  tx        ${EXPLORER}/transactions/${hex(txId)}`);
-  console.log("\nAdd this to .env.local and to your deployment's environment:\n");
+  // Both lines, not just the address. Setting the address alone leaves the app
+  // on the mock provider, so the contract is on chain but nothing in the UI
+  // shows it — the easy mistake to make at exactly this moment.
+  console.log("\nAdd BOTH to .env.local and to your deployment's environment:\n");
+  console.log(`  NEXT_PUBLIC_PROOF_PROVIDER=midnight`);
   console.log(`  NEXT_PUBLIC_CONTRACT_ADDRESS=${address}\n`);
+  console.log("The address alone is not enough: without the provider line the");
+  console.log("app still runs the mock and the explorer link stays hidden.\n");
 
   await walletProvider.stop();
 }
