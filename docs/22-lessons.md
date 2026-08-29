@@ -243,6 +243,45 @@ hex từ 32 ký tự trở lên.
 
 ---
 
+## 7. Mỗi transaction là một lần sync lại từ đầu — và không checkpoint được
+
+Ví dust sync từ genesis (~1.46 triệu index, khoảng 2.5 giờ trên Preprod) và
+**không lưu state giữa các tiến trình**. Deploy contract xong, muốn gọi thêm
+một circuit là trả lại toàn bộ cái giá đó.
+
+Nghe như chỉ cần lưu state rồi nạp lại. Đường đó **cụt**, và đây là bằng chứng
+để không ai phải đi lại:
+
+| Muốn dùng | Thực tế |
+|---|---|
+| `provider.wallet.dust.restore()` | `DustWalletAPI` chỉ có `serializeState()`, không có `restore()` |
+| `DustWallet(...).restore(state)` | có thật, nhưng ở **class**, chỉ dùng được lúc dựng ví |
+| `MidnightWalletProvider.build()` | chỉ nhận `(logger, env, seed)` |
+| `FluentWalletBuilder` | có `withSeed`/`withMnemonic`, không có `withState` |
+| Tự dựng như `buildWithoutStarting()` | cần `createKeystore()` và `mapEnvironmentToConfiguration()` — testkit **không export** |
+
+`MidnightWalletProvider.withWallet(...)` thì có export, nhưng nó cần một
+`WalletFacade` dựng sẵn — mà dựng được facade với dust wallet đã restore lại
+vướng đúng hai hàm không export ở trên.
+
+Khôi phục được chỉ khi bỏ testkit và dùng thẳng `wallet-sdk` — viết lại toàn
+bộ tầng ví, rủi ro lớn hơn nhiều so với thời gian tiết kiệm.
+
+### Hệ quả khi lập kế hoạch
+
+Đếm trước xem cần **bao nhiêu** transaction, và gộp lại nếu được. Wave 1 cần
+hai (deploy, đăng ký issuer) nên mất hai lần chờ. Gộp việc đăng ký issuer vào
+ngay sau deploy trong cùng một tiến trình sẽ tiết kiệm được một lần — đó là
+việc nên làm nếu phải deploy lại.
+
+Verify proof thì **đọc** chain (`lib/midnight/chain.ts`), không ghi — không cần
+ví, không cần sync, không tốn phí.
+
+`scripts/dust-checkpoint.mjs` giữ lại vì state lưu ra là thật và biết đâu
+testkit sẽ mở đường nạp lại. Hiện tại nó chỉ lưu được.
+
+---
+
 ## Ma trận phiên bản ledger 8 — tra một lần, dùng mãi
 
 Link tài liệu, endpoint Preprod và phiên bản đang chạy:
