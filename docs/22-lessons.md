@@ -290,6 +290,21 @@ giờ được làm mới.
 
 **Đừng commit.** File dẫn xuất từ seed. `.wallet-state/` đã gitignore.
 
+**Dust wallet có `costParameters` riêng, khác cái của facade.** testkit dựng nó
+từ `DEFAULT_DUST_OPTIONS` với **ba** trường:
+
+```js
+costParameters: {
+  ledgerParams: LedgerParameters.initialParameters(),   // từ ledger-v8
+  additionalFeeOverhead: 0n,
+  feeBlocksMargin: 5,
+}
+```
+
+Thiếu `ledgerParams` thì ví khôi phục sync đúng nhưng **tính phí sai** — kiểu
+hỏng không báo lỗi, chỉ lộ ra lúc node từ chối transaction. Log của testkit ở
+mức INFO có in `Creating dust wallet with params: …`, đối chiếu được.
+
 ### Vẫn nên đếm trước số transaction
 
 Checkpoint không xoá được cái giá của lần sync **đầu tiên**. Wave 1 cần hai

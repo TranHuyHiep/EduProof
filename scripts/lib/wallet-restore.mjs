@@ -54,7 +54,7 @@ export async function providerFromCheckpoint(logger, env, seed, savedState) {
     { DustWallet },
     { WalletEntrySchema, mergeWalletEntries },
     { InMemoryTransactionHistoryStorage },
-    { ZswapSecretKeys, DustSecretKey },
+    { ZswapSecretKeys, DustSecretKey, LedgerParameters },
   ] = await Promise.all([
     import("@midnight-ntwrk/testkit-js"),
     import("@midnight-ntwrk/wallet-sdk-unshielded-wallet"),
@@ -80,6 +80,20 @@ export async function providerFromCheckpoint(logger, env, seed, savedState) {
     costParameters: { feeBlocksMargin: 5 },
   };
 
+  // The dust wallet takes a costParameters of its own, and it is not the same
+  // shape as the one above: testkit's createDustWallet builds it from
+  // DEFAULT_DUST_OPTIONS with three fields. `ledgerParams` is what fees are
+  // computed against — omitting it here would restore a wallet that syncs
+  // correctly and prices transactions wrong.
+  const dustConfig = {
+    ...config,
+    costParameters: {
+      ledgerParams: LedgerParameters.initialParameters(),
+      additionalFeeOverhead: 0n,
+      feeBlocksMargin: 5,
+    },
+  };
+
   const seeds = WalletSeeds.fromMasterSeed(seed);
   const keystore = createKeystore(seeds.unshielded, env.walletNetworkId);
 
@@ -87,7 +101,7 @@ export async function providerFromCheckpoint(logger, env, seed, savedState) {
   const unshielded = WalletFactory.createUnshieldedWallet(config, keystore);
 
   // The one substitution that makes this worth doing.
-  const dust = DustWallet(config).restore(savedState);
+  const dust = DustWallet(dustConfig).restore(savedState);
 
   const facade = await WalletFactory.createWalletFacade(config, shielded, unshielded, dust);
 
