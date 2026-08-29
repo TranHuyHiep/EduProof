@@ -40,7 +40,10 @@ function write(contents: string) {
 }
 
 afterEach(() => {
-  rmSync(".wallet-state", { recursive: true, force: true });
+  // Only the file this suite writes. `rm -rf .wallet-state` would take the
+  // real checkpoint with it — a 90-minute sync destroyed by running the
+  // tests, which is exactly what happened once.
+  rmSync(checkpointPath(SEED), { force: true });
 });
 
 describe("reading a checkpoint", () => {
