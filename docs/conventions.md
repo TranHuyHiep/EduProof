@@ -43,7 +43,7 @@ Nếu file đã nằm trong commit → **là công việc có chủ đích, khô
 ### Trước khi commit
 
 ```bash
-npm test                  # 231 test, ~0.8s — chạy trước vì nhanh nhất
+npm test                  # 234 test, ~0.8s — chạy trước vì nhanh nhất
 npm run check:boundaries  # 4 luật ranh giới kiến trúc
 npx tsc --noEmit          # phải sạch
 npm run build             # phải pass — nhớ kill dev server trước

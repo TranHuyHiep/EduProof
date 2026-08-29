@@ -19,7 +19,7 @@ Dự thi Midnight Buildathon. Wave 1 đã xong phần code.
 
 ```bash
 npm run dev                # http://localhost:3000, mặc định mock provider
-npm test                   # 231 test, ~1s
+npm test                   # 234 test, ~1s
 npm run check:boundaries   # luật kiến trúc — PHẢI xanh
 npm run build              # build production
 npx tsc --noEmit           # typecheck

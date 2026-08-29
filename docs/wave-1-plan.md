@@ -31,7 +31,7 @@ Không còn việc code nào bắt buộc cho Wave 1.
 Cổng kiểm tra — chạy `npm test && npm run check:boundaries && npm run build`:
 
 ```
-npm test                  231 test / 12 file
+npm test                  234 test / 13 file
 npm run check:boundaries  4/4 luật kiến trúc
 npm run build             13 route, không warning
 npx tsc --noEmit          sạch

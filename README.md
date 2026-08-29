@@ -247,7 +247,7 @@ GPA, forge a signature, and present someone else's credential.
 ## Tests
 
 ```bash
-npm test                  # 231 tests
+npm test                  # 234 tests
 npm run check:boundaries  # architecture rules
 npm run build             # production build
 ```
@@ -257,6 +257,7 @@ npm run build             # production build
 | `tests/privacy.test.ts` | No private value reaches a `Proof`. Keep this one if all others are deleted |
 | `contracts/tests/circuit.test.ts` | The circuit constrains what it claims to — bad signatures, wrong holder, tampered credentials |
 | `contracts/tests/reduction.test.ts` | The Schnorr challenge-reduction witness cannot be lied to |
+| `contracts/tests/disclosure.test.ts` | What the circuit discloses is not a fingerprint of the credential |
 | `tests/circuit-encoding.test.ts` | The registry, the slot table and the operator codes stay in lockstep |
 | `tests/issuer-signing.test.ts` | The issuer key is stable, and a rewritten attribute breaks the signature |
 | `tests/school-circuit.test.ts` | The school's wire format matches what the client rebuilds |
