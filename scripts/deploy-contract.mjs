@@ -26,9 +26,14 @@ const EXPLORER = "https://preprod.midnightexplorer.com";
 const ASSETS = "contracts/build/eduproof";
 const PRIVATE_STATE_ID = "eduproof-deploy";
 
-// How long to wait for the dust wallet to catch up before giving up. Generous,
-// because the sync starts at genesis; override for a quicker failure.
-const DUST_SYNC_TIMEOUT_MS = Number(process.env.DUST_SYNC_TIMEOUT_MS ?? 45 * 60 * 1000);
+// How long to wait for the dust wallet to catch up before giving up.
+//
+// Measured on Preprod on 2026-08-29: ~280 indices/second against ~1.46M
+// indices, so a cold sync takes about 90 minutes. Three hours leaves room for
+// a slower indexer without running forever. The sync does not persist between
+// processes, so a timeout costs the whole wait — better to be generous.
+// Override with DUST_SYNC_TIMEOUT_MS for a quicker failure.
+const DUST_SYNC_TIMEOUT_MS = Number(process.env.DUST_SYNC_TIMEOUT_MS ?? 3 * 60 * 60 * 1000);
 
 /** Reads .env.local without a dependency. Values stay in memory. */
 function loadEnvLocal() {
