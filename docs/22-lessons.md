@@ -245,6 +245,9 @@ hex từ 32 ký tự trở lên.
 
 ## Ma trận phiên bản ledger 8 — tra một lần, dùng mãi
 
+Link tài liệu, endpoint Preprod và phiên bản đang chạy:
+[23-references.md](23-references.md).
+
 Nguồn: [ma trận chính thức](https://docs.midnight.network/relnotes/support-matrix)
 và `standalone.yml` của [midnight-local-dev](https://github.com/midnightntwrk/midnight-local-dev).
 

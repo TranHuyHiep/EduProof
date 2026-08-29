@@ -31,8 +31,22 @@ indexer      https://indexer.preprod.midnight.network/api/v4/graphql
 indexer WS   wss://indexer.preprod.midnight.network/api/v4/graphql/ws
 node RPC     https://rpc.preprod.midnight.network
 node WS      wss://rpc.preprod.midnight.network
-faucet       https://faucet.preprod.midnight.network/api/drips
+faucet       https://faucet.preprod.midnight.network        (API: /api/drips)
 explorer     https://preprod.midnightexplorer.com
+```
+
+Kiểm tra nhanh khi nghi mạng có vấn đề. Cả hai chỉ nhận POST, nên `curl` thường
+trả 405 dù endpoint vẫn sống:
+
+```bash
+curl -s -X POST -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"system_chain","params":[]}' \
+  https://rpc.preprod.midnight.network
+# {"jsonrpc":"2.0","id":1,"result":"Midnight Preprod"}
+
+curl -s -X POST -H "content-type: application/json" \
+  -d '{"query":"{ __typename }"}' \
+  https://indexer.preprod.midnight.network/api/v4/graphql
 ```
 
 Proof server: **chạy local** khi nộp transaction (Midnight yêu cầu), hosted
@@ -44,9 +58,10 @@ docker run -d --rm --name eduproof-proof-server \
   -p 6300:6300 -e PORT=6300 midnightntwrk/proof-server:8.1.0
 ```
 
-> Faucet: docs có nơi ghi `https://midnight-tmnight-preprod.nethermind.dev/`.
-> Chưa xác minh được cái nào còn sống vì cả hai render bằng JS. Endpoint
-> `/api/drips` ở trên là cái testkit thực sự dùng.
+> Faucet: trang gốc trả 200, còn `/api/drips` trả 404 với GET vì nó là đường
+> POST mà testkit dùng. Docs có nơi ghi một địa chỉ khác
+> (`midnight-tmnight-preprod.nethermind.dev`) — chưa xác minh được cái nào là
+> chính thống, nhưng địa chỉ ở trên là cái `testkit-js` thực sự gọi.
 
 ---
 

@@ -5,6 +5,7 @@ kiểm chứng riêng — **đừng bỏ qua phần kiểm chứng**, vì lần 
 (`Custom error: 170`) chính là do tin vào một dòng log thay vì kiểm tra.
 
 Bối cảnh và các bẫy đã gặp: [22-lessons.md](22-lessons.md).
+Link và endpoint: [23-references.md](23-references.md).
 
 ---
 

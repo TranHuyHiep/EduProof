@@ -33,6 +33,7 @@ thêm file mới không phải đánh số lại cả thư mục.
 | 20 | [20-architecture.md](20-architecture.md) | Ranh giới module, điểm hoán đổi provider |
 | 21 | [21-conventions.md](21-conventions.md) | Quy ước code, vận hành, thẩm mỹ UI |
 | 22 | [22-lessons.md](22-lessons.md) | **Bẫy Midnight** — mỗi mục ở đây đều đã tốn nhiều giờ |
+| 23 | [23-references.md](23-references.md) | Link, endpoint, phiên bản — tra khi cần, không đọc tuần tự |
 
 ## 3x — Chuyên đề
 
@@ -50,7 +51,7 @@ thêm file mới không phải đánh số lại cả thư mục.
 |---|---|---|
 | 40 | [40-wave-2-features.md](40-wave-2-features.md) | Wave 2 sẽ làm gì |
 | 41 | [41-wave-3-features.md](41-wave-3-features.md) | Wave 3 sẽ làm gì |
-| 42 | [42-references.md](42-references.md) | Link tài liệu Midnight, đã kiểm chứng còn sống |
+| 42 | [23-references.md](23-references.md) | Link tài liệu Midnight, đã kiểm chứng còn sống |
 
 Mỗi Wave có file **features**. Riêng Wave 1 có thêm **plan** và **go-live**, vì
 nó là Wave đang làm — kế hoạch Wave sau chỉ viết khi tới lượt.
@@ -65,6 +66,7 @@ nó là Wave đang làm — kế hoạch Wave sau chỉ viết khi tới lượt
 | Deploy lên preprod | [12](12-go-live.md) |
 | Sắp viết code | [20](20-architecture.md) → [21](21-conventions.md) |
 | Động vào phần Midnight | [22](22-lessons.md) **trước đã** |
+| Cần link tài liệu, endpoint, số phiên bản | [23](23-references.md) |
 | Động vào `lib/school/` | [30](30-school-vendor-contract.md) |
 | Kiểm tra thể lệ, rubric | [01](01-hackathon.md) |
 
