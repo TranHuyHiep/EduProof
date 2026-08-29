@@ -80,3 +80,6 @@ keys/private/
 
 # Dust wallet sync checkpoint — derived from your wallet, and large.
 .dust-checkpoint.json
+
+# Dust wallet sync checkpoints. Derived from your seed — never commit.
+.wallet-state/

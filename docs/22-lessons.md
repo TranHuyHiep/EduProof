@@ -243,42 +243,61 @@ hex từ 32 ký tự trở lên.
 
 ---
 
-## 7. Mỗi transaction là một lần sync lại từ đầu — và không checkpoint được
+## 7. Sync lại từ đầu mỗi lần — và cách chữa
 
-Ví dust sync từ genesis (~1.46 triệu index, khoảng 2.5 giờ trên Preprod) và
-**không lưu state giữa các tiến trình**. Deploy contract xong, muốn gọi thêm
-một circuit là trả lại toàn bộ cái giá đó.
+Ví dust sync từ genesis (~1.46 triệu index, ~2.5 giờ trên Preprod) và testkit
+vứt state đi khi tiến trình kết thúc. Hai transaction là hai lần sync.
 
-Nghe như chỉ cần lưu state rồi nạp lại. Đường đó **cụt**, và đây là bằng chứng
-để không ai phải đi lại:
+### testkit không có đường khôi phục — nhưng các gói dưới nó thì có
 
-| Muốn dùng | Thực tế |
+Tìm trong `testkit-js` sẽ thấy đường cụt, và **đó là kết luận sai**:
+
+| Trong testkit | Thực tế |
 |---|---|
-| `provider.wallet.dust.restore()` | `DustWalletAPI` chỉ có `serializeState()`, không có `restore()` |
-| `DustWallet(...).restore(state)` | có thật, nhưng ở **class**, chỉ dùng được lúc dựng ví |
 | `MidnightWalletProvider.build()` | chỉ nhận `(logger, env, seed)` |
-| `FluentWalletBuilder` | có `withSeed`/`withMnemonic`, không có `withState` |
-| Tự dựng như `buildWithoutStarting()` | cần `createKeystore()` và `mapEnvironmentToConfiguration()` — testkit **không export** |
+| `FluentWalletBuilder` | có `withSeed`, không có `withState` |
+| `WalletSaveStateProvider.save()` | chỉ nhận **shielded/unshielded**, không nhận dust |
+| `WalletFactory.restoreShieldedWallet` | shielded, không phải dust |
 
-`MidnightWalletProvider.withWallet(...)` thì có export, nhưng nó cần một
-`WalletFacade` dựng sẵn — mà dựng được facade với dust wallet đã restore lại
-vướng đúng hai hàm không export ở trên.
+Nhưng mọi mảnh testkit dùng bên trong đều được **các gói gốc export**:
 
-Khôi phục được chỉ khi bỏ testkit và dùng thẳng `wallet-sdk` — viết lại toàn
-bộ tầng ví, rủi ro lớn hơn nhiều so với thời gian tiết kiệm.
+```
+createKeystore                     wallet-sdk-unshielded-wallet
+DustWallet(config).restore(state)  wallet-sdk-dust-wallet
+WalletEntrySchema                  wallet-sdk-facade
+mergeWalletEntries                 wallet-sdk-facade
+InMemoryTransactionHistoryStorage  wallet-sdk-abstractions
+ZswapSecretKeys, DustSecretKey     ledger-v8            ← KHÔNG phải compact-runtime
+WalletFactory, WalletSeeds         testkit-js
+MidnightWalletProvider.withWallet  testkit-js
+```
 
-### Hệ quả khi lập kế hoạch
+Ghép lại là dựng được đúng ví testkit dựng, chỉ thay **một** chỗ: dust wallet
+đến từ `restore(savedState)` thay vì `startWithSeed(...)`.
 
-Đếm trước xem cần **bao nhiêu** transaction, và gộp lại nếu được. Wave 1 cần
-hai (deploy, đăng ký issuer) nên mất hai lần chờ. Gộp việc đăng ký issuer vào
-ngay sau deploy trong cùng một tiến trình sẽ tiết kiệm được một lần — đó là
-việc nên làm nếu phải deploy lại.
+Cài đặt: [scripts/lib/wallet-restore.mjs](../scripts/lib/wallet-restore.mjs),
+nối vào [scripts/lib/wallet-setup.mjs](../scripts/lib/wallet-setup.mjs).
 
-Verify proof thì **đọc** chain (`lib/midnight/chain.ts`), không ghi — không cần
-ví, không cần sync, không tốn phí.
+### Ba điều dễ sai
 
-`scripts/dust-checkpoint.mjs` giữ lại vì state lưu ra là thật và biết đâu
-testkit sẽ mở đường nạp lại. Hiện tại nó chỉ lưu được.
+**Lưu ở đường ra, không lưu trong nhánh đợi sync.** Khôi phục thành công thì
+DUST đã khác 0, nhánh `if (dust === 0n)` không chạy — checkpoint sẽ không bao
+giờ được làm mới.
+
+**Checkpoint hỏng không được làm hỏng việc.** JSON hỏng → `readCheckpoint` trả
+`null`; state rác → `providerFromCheckpoint` ném lỗi bắt được → quay về sync
+đầy đủ. Cả hai đã thử bằng file hỏng thật.
+
+**Đừng commit.** File dẫn xuất từ seed. `.wallet-state/` đã gitignore.
+
+### Vẫn nên đếm trước số transaction
+
+Checkpoint không xoá được cái giá của lần sync **đầu tiên**. Wave 1 cần hai
+transaction (deploy, đăng ký issuer); gộp đăng ký vào ngay sau deploy trong
+cùng tiến trình thì chỉ mất một lần chờ.
+
+Verify proof thì **đọc** chain (`lib/midnight/chain.ts`) — không ví, không
+sync, không phí.
 
 ---
 

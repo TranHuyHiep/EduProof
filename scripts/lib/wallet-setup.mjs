@@ -173,7 +173,27 @@ export async function openFundedWallet() {
   // ── Wallet ────────────────────────────────────────────────────────────
 
   console.log("\nopening wallet …");
-  const walletProvider = await MidnightWalletProvider.build(logger, config, seed);
+  // A checkpoint turns the two-and-a-half hour cold sync into catching up
+  // from wherever the last run got to. Falling back to a cold sync is always
+  // correct, so a stale or unreadable checkpoint costs time, never a run.
+  const { providerFromCheckpoint, readCheckpoint } = await import("./wallet-restore.mjs");
+  const checkpoint = readCheckpoint(seed);
+
+  let walletProvider;
+  if (checkpoint) {
+    const age = Math.round((Date.now() - new Date(checkpoint.savedAt).getTime()) / 60000);
+    process.stdout.write(`restoring dust state from ${age} minutes ago … `);
+    try {
+      walletProvider = await providerFromCheckpoint(logger, config, seed, checkpoint.state);
+      console.log("ok");
+    } catch (error) {
+      console.log(`failed (${error?.message ?? error})`);
+      console.log("falling back to a full sync.");
+      walletProvider = undefined;
+    }
+  }
+
+  walletProvider ??= await MidnightWalletProvider.build(logger, config, seed);
 
   // `start()` waits for funds and gives up after a hard 90s with nothing but
   // "sync timeout" — which is what an empty wallet looks like, and says
@@ -318,6 +338,15 @@ export async function openFundedWallet() {
       }, DUST_SYNC_TIMEOUT_MS);
     });
   }
+
+  // Checkpoint on the way out, whichever path got us here — a restored wallet
+  // has moved on since it was saved, so this is also how the file stays fresh.
+  // Saved before the caller submits anything: a run that dies at submission
+  // should not also cost the next run its sync.
+  const { writeCheckpoint } = await import("./wallet-restore.mjs");
+  const saved = await writeCheckpoint(seed, walletProvider);
+  if (saved?.path) console.log(`checkpoint saved — ${Math.round(saved.size / 1024)} KB`);
+  else if (saved?.error) console.log(`checkpoint not saved: ${saved.error}`);
 
   return { walletProvider, walletAddress, storagePassword, config, logger, Rx };
 }
