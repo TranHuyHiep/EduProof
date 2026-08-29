@@ -13,7 +13,6 @@ Cập nhật: 2026-08-29
 | 1 | **Repo để public + gắn topic `midnightntwrk`** | chủ dự án | **CÓ — thiếu là loại thẳng** |
 | 2 | Slide deck | chủ dự án | 10% rubric |
 | 3 | Video demo 3–5 phút | chủ dự án | cùng 10% đó |
-| 4 | Commit toàn bộ working tree | ai cũng được | không |
 
 **Đang chạy nền:** deploy contract lên preprod. Xem [Trạng thái deploy](#trạng-thái-deploy).
 
