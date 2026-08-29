@@ -20,10 +20,15 @@ vi.mock("@/lib/midnight/chain", () => ({
   issuerRegistered: vi.fn(),
 }));
 
-async function verifyWith(chain: {
-  state: Record<string, unknown>;
-  issuer: Record<string, unknown>;
-}) {
+async function verifyWith(
+  chain: {
+    state: Record<string, unknown>;
+    issuer: Record<string, unknown>;
+  },
+  // Overridable so a caller can verify two *different* proofs. Left fixed, the
+  // linkability test below silently passed a link carrying the proof id.
+  proofId = "pf_test123456",
+) {
   const chainModule = await import("@/lib/midnight/chain");
   vi.mocked(chainModule.chainState).mockResolvedValue(chain.state as never);
   vi.mocked(chainModule.issuerRegistered).mockResolvedValue(chain.issuer as never);
@@ -32,7 +37,7 @@ async function verifyWith(chain: {
   const { MidnightProofProvider } = await import("@/lib/proof/midnight-provider");
 
   const proof = {
-    proofId: "pf_test123456",
+    proofId,
     version: "1",
     provider: "midnight",
     issuer: { schoolId: SCHOOL_ID, schoolName: "X", keyId: "k1", verified: true },
@@ -116,8 +121,46 @@ describe("the on-chain half of a verification", () => {
 
     // If a future change adds a per-proof lookup — an index, a nullifier, a
     // record id — two proofs by one student become linkable. Pin the shape.
+    //
+    // Every field here is a property of the contract or of this device's own
+    // copy of the proof. `explorerTxUrl` was the closest call: a transaction
+    // hash sounds per-proof, and would be if proving ever submitted one. It is
+    // the contract's latest transaction, read with no proof-derived argument,
+    // so all verifiers see the same value. Adding a field is a decision to
+    // make here deliberately, not a test to update until it passes.
     expect(Object.keys(result.onChain ?? {}).sort()).toEqual(
-      ["available", "explorerUrl", "issuerCount", "issuerRegistered", "proofsVerified"].sort(),
+      [
+        "available",
+        "explorerTxUrl",
+        "explorerUrl",
+        "issuerCount",
+        "issuerRegistered",
+        "proofsVerified",
+      ].sort(),
     );
+  });
+
+  it("gives every proof the same transaction link, so one cannot single out a student", async () => {
+    // Two verifications against one chain. If these ever diverged, the link
+    // would identify which proof was being viewed. Run in sequence: the two
+    // share a mocked module, so overlapping them would test the mock instead.
+    const chain = {
+      state: { available: true, issuerCount: 3, proofsVerified: 42n, txHash: "a".repeat(64) },
+      issuer: { available: true, registered: true },
+    };
+    const first = await verifyWith(chain, "pf_aaaaaaaaaaaa");
+    const second = await verifyWith(chain, "pf_bbbbbbbbbbbb");
+
+    expect(first.onChain?.explorerTxUrl).toBe(second.onChain?.explorerTxUrl);
+    expect(first.onChain?.explorerTxUrl).toContain("a".repeat(64));
+  });
+
+  it("omits the transaction link rather than inventing one when the indexer gives no hash", async () => {
+    const result = await verifyWith({
+      state: { available: true, issuerCount: 3, proofsVerified: 42n },
+      issuer: { available: true, registered: true },
+    });
+
+    expect(result.onChain?.explorerTxUrl).toBeUndefined();
   });
 });

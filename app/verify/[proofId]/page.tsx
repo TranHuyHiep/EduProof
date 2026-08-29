@@ -14,14 +14,31 @@ import { issuerBadge } from "@/lib/issuer-badge";
 const ALWAYS_WITHHELD = ["Full name", "Student ID", "Complete transcript"];
 
 /**
- * The contract address, shortened for a table but still identifiable.
+ * The contract address, shortened for a table and linked to the explorer.
  *
- * Shown as text so a verifier can match it against the address the explorer
- * link opens, rather than following a link and trusting where it lands.
+ * Shortened but still identifiable on purpose: the head and tail are what a
+ * verifier compares against the address the explorer page shows them, so the
+ * link is a shortcut to checking rather than a substitute for it.
  */
-function contractLabel(): string {
+function ContractAddress() {
   const address = midnightConfig.contractAddress.replace(/^0x/, "");
-  return address ? `${address.slice(0, 10)}\u2026${address.slice(-6)}` : "not configured";
+  if (!address) return <>not configured</>;
+
+  const short = `${address.slice(0, 10)}\u2026${address.slice(-6)}`;
+  const url = explorerContractUrl();
+  if (!url) return <>{short}</>;
+
+  return (
+    <a
+      className="underline underline-offset-2 hover:text-ink"
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      title={address}
+    >
+      {short}
+    </a>
+  );
 }
 
 /**
@@ -183,7 +200,7 @@ export default function VerifyProofPage({
                     label="Institutions in the registry"
                     value={onChain.issuerCount ?? "—"}
                   />
-                  <Entry label="Contract" value={contractLabel()} mono />
+                  <Entry label="Contract" value={<ContractAddress />} mono />
                   <Entry label="Network" value={NETWORK} />
                 </dl>
                 {/*
@@ -207,6 +224,25 @@ export default function VerifyProofPage({
                   >
                     Read the ledger on the block explorer
                   </a>
+                  {/*
+                    The registration itself, as a transaction anyone can open.
+                    Rendered only when the indexer supplied a hash — a link
+                    built from a guess would be worse than no link, since the
+                    whole point of this block is that it can be checked.
+                  */}
+                  {onChain.explorerTxUrl && (
+                    <>
+                      {", or the "}
+                      <a
+                        className="underline underline-offset-2 hover:text-ink"
+                        href={onChain.explorerTxUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        transaction that last wrote to it
+                      </a>
+                    </>
+                  )}
                   .
                 </p>
               </>
