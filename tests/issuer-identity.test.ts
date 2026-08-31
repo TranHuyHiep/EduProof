@@ -26,7 +26,7 @@ import { issueCredential } from "@/lib/school/credential";
 
 describe("the school's identity on chain", () => {
   it("is the same value however it is reached", () => {
-    const { school, students } = loadSchoolData();
+    const { school, students } = loadSchoolData("hanoi-university");
     const credential = issueCredential(students[0], school);
 
     // Exactly what register-issuer.mjs does: read the JSON, hash `id`.
@@ -43,7 +43,7 @@ describe("the school's identity on chain", () => {
   it("is stable across students of the same school", () => {
     // Slot 0 comes from the credential, so a second student must not produce
     // a different issuer.
-    const { school, students } = loadSchoolData();
+    const { school, students } = loadSchoolData("hanoi-university");
     const expected = hashToField(school.id);
 
     for (const student of students.slice(0, 3)) {

@@ -56,6 +56,9 @@ Other things worth trying: `/verify` with a pasted link or bare proof id,
 `/verify/nonsense` for the error state, and `SV003` (Charlie), who has
 graduated, against *status is active*.
 
+The same five steps also live inside the app at `/guide`, with links to jump
+straight to each one.
+
 ---
 
 ## Midnight integration
@@ -204,6 +207,8 @@ lib/midnight/               The bridge
   prover.ts                 Credential → witness → verdict
 
 app/                        Routes (Next.js App Router)
+  api/school/[schoolId]/    One route per school — each a separate vendor
+  guide/                    A five-step walkthrough for a first-time visitor
 mock-school-api/            The school as a standalone service, port 4000
 ```
 
@@ -254,7 +259,7 @@ GPA, forge a signature, and present someone else's credential.
 ## Tests
 
 ```bash
-npm test                  # 234 tests
+npm test                  # 262 tests
 npm run check:boundaries  # architecture rules
 npm run build             # production build
 ```

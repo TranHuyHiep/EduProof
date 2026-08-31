@@ -1,14 +1,17 @@
-// A university's GraphQL endpoint, run as a standalone service.
+// Universities' GraphQL endpoints, run as a standalone service.
 //
-// This is the honest deployment shape: the school is a separate vendor with
+// This is the honest deployment shape: each school is a separate vendor with
 // its own system, and the student's browser fetches from it directly. EduProof
 // never sees an attribute value because it has no path to one.
 //
-// The Vercel demo folds an equivalent endpoint into the app at
-// /api/school/graphql so the whole thing deploys as one project. Both shells
-// call the SAME core in lib/school/, so they cannot drift apart.
+// Every school gets its own path, /{schoolId}/graphql, because each is an
+// independent vendor with its own data and its own signing key.
 //
-//   npm run school          →  http://localhost:4000/graphql
+// The Vercel demo folds equivalent endpoints into the app at
+// /api/school/{schoolId}/graphql so the whole thing deploys as one project.
+// Both shells call the SAME core in lib/school/, so they cannot drift apart.
+//
+//   npm run school          →  http://localhost:4000/{schoolId}/graphql
 //
 // Requires Node 22+ for --experimental-strip-types (set by the npm script).
 
@@ -31,15 +34,22 @@ const toEnum = (value) => value.toUpperCase();
 const { schools } = read("schools.json");
 const { students } = read("students.json");
 
-const data = {
-  school: { ...schools[0], issuerPublicKey: "" },
-  students: students.map((s) => ({
-    ...s,
-    status: toEnum(s.status),
-    degree: toEnum(s.degree),
-    gpaScale: GPA_SCALE,
-  })),
-};
+const allStudents = students.map((s) => ({
+  ...s,
+  status: toEnum(s.status),
+  degree: toEnum(s.degree),
+  gpaScale: GPA_SCALE,
+}));
+
+/** Loads one school's own data — its profile, and only its students. */
+function loadSchoolData(schoolId) {
+  const raw = schools.find((s) => s.id === schoolId);
+  if (!raw) return null;
+  return {
+    school: { ...raw, issuerPublicKey: "" },
+    students: allStudents.filter((s) => s.schoolId === schoolId),
+  };
+}
 
 const cors = {
   "Access-Control-Allow-Origin": ORIGIN,
@@ -50,8 +60,15 @@ const cors = {
 createServer((req, res) => {
   if (req.method === "OPTIONS") return res.writeHead(204, cors).end();
 
-  if (req.method !== "POST" || !req.url.startsWith("/graphql")) {
-    return res.writeHead(404, cors).end("POST /graphql");
+  const match = req.url.match(/^\/([^/]+)\/graphql$/);
+  if (req.method !== "POST" || !match) {
+    return res.writeHead(404, cors).end("POST /{schoolId}/graphql");
+  }
+
+  const data = loadSchoolData(match[1]);
+  if (!data) {
+    res.writeHead(404, { ...cors, "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ errors: [{ message: `Unknown school: ${match[1]}` }] }));
   }
 
   let raw = "";
@@ -67,7 +84,8 @@ createServer((req, res) => {
     res.end(JSON.stringify(payload));
   });
 }).listen(PORT, () => {
-  console.log(`School GraphQL  →  http://localhost:${PORT}/graphql`);
+  console.log(`School GraphQL  →  http://localhost:${PORT}/{schoolId}/graphql`);
+  console.log(`Schools         →  ${schools.map((s) => s.id).join(", ")}`);
   console.log(`CORS origin     →  ${ORIGIN}`);
-  console.log(`Records loaded  →  ${data.students.length}`);
+  console.log(`Records loaded  →  ${allStudents.length}`);
 });

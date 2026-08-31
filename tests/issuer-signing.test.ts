@@ -11,9 +11,11 @@ import { circuitPublicKey, circuitSigningKey, signFieldVector } from "@/lib/scho
 import { toCircuitVector } from "@/lib/midnight/encoding";
 import type { CredentialBody } from "@/lib/school/types";
 
+const SCHOOL_ID = "hanoi-university";
+
 const body: CredentialBody = {
   schema: "eduproof/credential/v1",
-  issuer: { schoolId: "hanoi-university", schoolName: "Hanoi University", keyId: "key-1" },
+  issuer: { schoolId: SCHOOL_ID, schoolName: "Hanoi University", keyId: "key-1" },
   subject: "SV001",
   attributes: {
     status: "ACTIVE",
@@ -28,7 +30,7 @@ const body: CredentialBody = {
 };
 
 async function verifyingKey() {
-  return publicKeyOf(await circuitSigningKey());
+  return publicKeyOf(await circuitSigningKey(SCHOOL_ID));
 }
 
 describe("the issuer key is stable", () => {
@@ -36,8 +38,8 @@ describe("the issuer key is stable", () => {
     // The property the whole scheme depends on. A key regenerated per process
     // — which is what serverless would do — invalidates every credential
     // already issued, and the symptom appears only after a deploy.
-    const a = await circuitPublicKey();
-    const b = await circuitPublicKey();
+    const a = await circuitPublicKey(SCHOOL_ID);
+    const b = await circuitPublicKey(SCHOOL_ID);
     expect(a).toEqual(b);
   });
 
@@ -51,15 +53,15 @@ describe("the issuer key is stable", () => {
     // Two signatures over two representations. Conflating them would produce a
     // key that verifies neither.
     const { issuerPublicKey } = await import("@/lib/school/keys");
-    const pk = await circuitPublicKey();
-    expect(issuerPublicKey()).not.toContain(String(pk.x));
+    const pk = await circuitPublicKey(SCHOOL_ID);
+    expect(issuerPublicKey(SCHOOL_ID)).not.toContain(String(pk.x));
   });
 });
 
 describe("a signature over the credential vector", () => {
   it("verifies against the published issuer key", async () => {
     const vector = toCircuitVector(body, 12345n);
-    const sig = await signFieldVector(vector);
+    const sig = await signFieldVector(SCHOOL_ID, vector);
     expect(await verify(vector, sig, await verifyingKey())).toBe(true);
   });
 
@@ -67,7 +69,7 @@ describe("a signature over the credential vector", () => {
     // The student holds the credential, so this is precisely the attack the
     // signature exists to stop: raising one's own GPA.
     const vector = toCircuitVector(body, 12345n);
-    const sig = await signFieldVector(vector);
+    const sig = await signFieldVector(SCHOOL_ID, vector);
     const raised = { ...body, attributes: { ...body.attributes, gpaScaled: 400 } };
     expect(
       await verify(toCircuitVector(raised, 12345n), sig, await verifyingKey()),
@@ -75,7 +77,7 @@ describe("a signature over the credential vector", () => {
   });
 
   it("fails when presented under a different subject", async () => {
-    const sig = await signFieldVector(toCircuitVector(body, 12345n));
+    const sig = await signFieldVector(SCHOOL_ID, toCircuitVector(body, 12345n));
     expect(
       await verify(toCircuitVector(body, 99999n), sig, await verifyingKey()),
     ).toBe(false);
@@ -83,7 +85,7 @@ describe("a signature over the credential vector", () => {
 
   it("does not verify against another school's key", async () => {
     const vector = toCircuitVector(body, 12345n);
-    const sig = await signFieldVector(vector);
+    const sig = await signFieldVector(SCHOOL_ID, vector);
     const other = await publicKeyOf(7654321n);
     expect(await verify(vector, sig, other)).toBe(false);
   });
@@ -92,8 +94,8 @@ describe("a signature over the credential vector", () => {
     // Schnorr samples a fresh nonce. Identical announcements would leak the
     // key outright.
     const vector = toCircuitVector(body, 12345n);
-    const a = await signFieldVector(vector);
-    const b = await signFieldVector(vector);
+    const a = await signFieldVector(SCHOOL_ID, vector);
+    const b = await signFieldVector(SCHOOL_ID, vector);
     expect(a.announcement).not.toEqual(b.announcement);
     expect(await verify(vector, a, await verifyingKey())).toBe(true);
     expect(await verify(vector, b, await verifyingKey())).toBe(true);

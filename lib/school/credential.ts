@@ -32,7 +32,7 @@ export function issueCredential(
 
   // Sign the canonical form, not JSON.stringify output — key order must not
   // depend on which language built the object.
-  return { ...body, signature: signCanonical(toCanonicalJson(body)) };
+  return { ...body, signature: signCanonical(student.schoolId, toCanonicalJson(body)) };
 }
 
 /** Strips the signature and re-derives the canonical bytes it covers. */
@@ -81,7 +81,7 @@ export async function signForCircuit(
   }
 
   const vector = toCircuitVector(body, subjectCommitment);
-  const signature = await signFieldVector(vector);
+  const signature = await signFieldVector(body.issuer.schoolId, vector);
 
   return {
     circuitVector: vector.map(String),

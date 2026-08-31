@@ -13,12 +13,20 @@ const NAV = [
   { href: "/school", label: "Registry" },
   { href: "/student/login", label: "Student" },
   { href: "/verify", label: "Verify" },
+  { href: "/guide", label: "Guide" },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex min-h-screen flex-col">
+      {/*
+        suppressHydrationWarning: browser extensions (Grammarly, password
+        managers, ad blockers) inject attributes into `body` before React
+        hydrates — e.g. Grammarly's `data-gr-ext-installed`. That mismatch is
+        real but harmless: React only skips warning about it here, and still
+        hydrates and patches every other mismatch normally.
+      */}
+      <body className="flex min-h-screen flex-col" suppressHydrationWarning>
         {/*
           Says which proving system is actually running. Hardcoding it was
           wrong in both directions once the circuit existed: it understated the

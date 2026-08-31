@@ -74,8 +74,8 @@ export async function openProvingSession(student: Student): Promise<ProvingSessi
   // The commitment is public and unlinkable to the student on its own, so the
   // school can be told it. The secret behind it is never sent.
   const [credential, issuerPk] = await Promise.all([
-    fetchCredential(student.id, subject.toString()),
-    fetchCircuitPublicKey(),
+    fetchCredential(student.schoolId, student.id, subject.toString()),
+    fetchCircuitPublicKey(student.schoolId),
   ]);
 
   if (!credential.circuitSignature) {

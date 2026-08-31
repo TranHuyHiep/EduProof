@@ -12,8 +12,17 @@ import type { SchoolProfile, StudentRecord } from "./types.ts";
 /** Files store human-readable values; the schema exposes GraphQL enums. */
 const toEnum = <T extends string>(value: string): T => value.toUpperCase() as T;
 
-export function loadSchoolData(): SchoolData {
-  const raw = schoolsJson.schools[0];
+/**
+ * Loads one school's own data — its profile, and only ITS students.
+ *
+ * Each school is an independent vendor with its own system; a real
+ * institution's database has no path to another institution's records, so
+ * neither does this. Throws on an unknown id rather than silently returning
+ * nothing, so a typo in a route or a stale link fails loudly.
+ */
+export function loadSchoolData(schoolId: string): SchoolData {
+  const raw = schoolsJson.schools.find((s) => s.id === schoolId);
+  if (!raw) throw new Error(`Unknown school: ${schoolId}`);
 
   const school: SchoolProfile = {
     id: raw.id,
@@ -25,19 +34,21 @@ export function loadSchoolData(): SchoolData {
     issuerPublicKey: "",
   };
 
-  const students: StudentRecord[] = studentsJson.students.map((s) => ({
-    id: s.id,
-    schoolId: s.schoolId,
-    name: s.name,
-    status: toEnum<StudentRecord["status"]>(s.status),
-    gpaScaled: s.gpaScaled,
-    gpaScale: GPA_SCALE,
-    academicYear: s.academicYear,
-    degree: toEnum<StudentRecord["degree"]>(s.degree),
-    major: s.major,
-    enrolledAt: s.enrolledAt,
-    expiresAt: s.expiresAt,
-  }));
+  const students: StudentRecord[] = studentsJson.students
+    .filter((s) => s.schoolId === schoolId)
+    .map((s) => ({
+      id: s.id,
+      schoolId: s.schoolId,
+      name: s.name,
+      status: toEnum<StudentRecord["status"]>(s.status),
+      gpaScaled: s.gpaScaled,
+      gpaScale: GPA_SCALE,
+      academicYear: s.academicYear,
+      degree: toEnum<StudentRecord["degree"]>(s.degree),
+      major: s.major,
+      enrolledAt: s.enrolledAt,
+      expiresAt: s.expiresAt,
+    }));
 
   return { school, students };
 }

@@ -9,10 +9,10 @@
 //  The Docker Compose setup runs it as a separate service, which is the
 //  honest picture — see docs/30-school-vendor-contract.md.
 //
-//  A fixed alias to `hanoi-university`, kept for anything still pointing at
-//  the unparameterised path (and so NEXT_PUBLIC_SCHOOL_API's default keeps
-//  working). Every school, including this one, is also reachable at
-//  /api/school/[schoolId]/graphql — see that route for the general case.
+//  Every school gets its own path segment, `[schoolId]`, because each is an
+//  independent vendor with its own data and its own signing key — the same
+//  way a real institution would run its own endpoint rather than share one
+//  with every other school EduProof talks to.
 //
 //  HARD RULE: nothing under app/api/school/ may import from lib/proof/.
 //  A school knows nothing about EduProof's proof system. Blurring the
@@ -23,9 +23,13 @@
 import { loadSchoolData } from "@/lib/school/data";
 import { executeSchoolQuery, type GraphQLRequest } from "@/lib/school/schema";
 
-export async function POST(request: Request) {
-  let body: GraphQLRequest;
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ schoolId: string }> }
+) {
+  const { schoolId } = await params;
 
+  let body: GraphQLRequest;
   try {
     body = (await request.json()) as GraphQLRequest;
   } catch {
@@ -36,7 +40,14 @@ export async function POST(request: Request) {
     return Response.json({ errors: [{ message: "Missing `query`" }] }, { status: 400 });
   }
 
-  const result = await executeSchoolQuery(body, loadSchoolData("hanoi-university"));
+  let data;
+  try {
+    data = loadSchoolData(schoolId);
+  } catch (e) {
+    return Response.json({ errors: [{ message: (e as Error).message }] }, { status: 404 });
+  }
+
+  const result = await executeSchoolQuery(body, data);
   return Response.json(result);
 }
 

@@ -12,7 +12,7 @@ import { SLOT } from "@/lib/school/canonical";
 
 const COMMITMENT = "12345678901234567890";
 
-const schoolData = loadSchoolData();
+const schoolData = loadSchoolData("hanoi-university");
 
 async function run(query: string, variables: Record<string, unknown> = {}) {
   const result = await executeSchoolQuery({ query, variables }, schoolData);
