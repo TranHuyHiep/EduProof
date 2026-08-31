@@ -20,16 +20,23 @@ let data: SchoolData;
 const run = (query: string, variables?: Record<string, unknown>) =>
   executeSchoolQuery({ query, variables }, data);
 
+/** Reads one `KEY=value` line out of `.env.local` without a dependency. */
+function envLocalValue(key: string): string | undefined {
+  return readFileSync(".env.local", "utf8")
+    .split("\n")
+    .find((l) => l.startsWith(`${key}=`))
+    ?.slice(`${key}=`.length)
+    .trim();
+}
+
 beforeAll(() => {
   // A signing key must be present, or issuing falls back to an ephemeral key
   // and the signature assertions below would be meaningless.
-  process.env.SCHOOL_SIGNING_KEY ??= readFileSync(".env.local", "utf8")
-    .split("\n")
-    .find((l) => l.startsWith("SCHOOL_SIGNING_KEY="))
-    ?.slice("SCHOOL_SIGNING_KEY=".length)
-    .trim();
+  process.env.SCHOOL_SIGNING_KEY ??= envLocalValue("SCHOOL_SIGNING_KEY");
+  process.env.SCHOOL_SIGNING_KEY_HCMC_TECH ??= envLocalValue("SCHOOL_SIGNING_KEY_HCMC_TECH");
+  process.env.SCHOOL_SIGNING_KEY_NUS ??= envLocalValue("SCHOOL_SIGNING_KEY_NUS");
 
-  data = loadSchoolData();
+  data = loadSchoolData("hanoi-university");
 });
 
 describe("the public school profile", () => {
@@ -224,5 +231,69 @@ describe("schema validation", () => {
     // A roster endpoint without auth is a bulk-disclosure hole (P3).
     const result = await run(`{ students { id name } }`);
     expect(result.errors?.length).toBeGreaterThan(0);
+  });
+});
+
+describe("multiple schools, each an independent vendor", () => {
+  const SCHOOL_IDS = ["hanoi-university", "hcmc-tech", "nus"] as const;
+
+  it("throws on an unknown school id rather than silently returning nothing", () => {
+    expect(() => loadSchoolData("not-a-real-school")).toThrow(/unknown school/i);
+  });
+
+  it("signs each school's credentials with a distinct key", async () => {
+    const keys = await Promise.all(
+      SCHOOL_IDS.map(async (id) => {
+        const school = loadSchoolData(id);
+        const result = await executeSchoolQuery({ query: `{ school { issuerPublicKey } }` }, school);
+        return (result.data as { school: { issuerPublicKey: string } }).school.issuerPublicKey;
+      }),
+    );
+    expect(new Set(keys).size).toBe(SCHOOL_IDS.length);
+  });
+
+  it("only ever loads students belonging to that school", () => {
+    for (const id of SCHOOL_IDS) {
+      const { students } = loadSchoolData(id);
+      expect(students.length).toBeGreaterThan(0);
+      for (const s of students) expect(s.schoolId).toBe(id);
+    }
+  });
+
+  it("issues a verifiable credential from a non-default school", async () => {
+    const school = loadSchoolData("nus");
+    const [student] = school.students;
+    const result = await executeSchoolQuery(
+      {
+        query: `query C($id: ID!) {
+          credential(studentId: $id) {
+            schema issuer { schoolId schoolName keyId } subject
+            attributes { status gpaScaled gpaScale academicYear degree major }
+            issuedAt expiresAt signature
+          }
+        }`,
+        variables: { id: student.id },
+      },
+      school,
+    );
+    expect(result.errors).toBeUndefined();
+
+    const cred = (result.data as { credential: Record<string, unknown> }).credential;
+    const registry = JSON.parse(readFileSync("data/schools.json", "utf8")) as {
+      schools: Array<{ id: string; issuerPublicKey: string }>;
+    };
+    const publicKey = createPublicKey({
+      key: Buffer.from(registry.schools.find((s) => s.id === "nus")!.issuerPublicKey, "base64"),
+      format: "der",
+      type: "spki",
+    });
+
+    const ok = verify(
+      null,
+      Buffer.from(canonicalBodyOf(cred as never), "utf8"),
+      publicKey,
+      Buffer.from(cred.signature as string, "base64"),
+    );
+    expect(ok).toBe(true);
   });
 });

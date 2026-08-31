@@ -1,17 +1,25 @@
-// Client for the school's GraphQL endpoint.
+// Client for a school's GraphQL endpoint.
 //
 // Every call here runs in the BROWSER, never on an EduProof server. That is
 // the whole architecture in one sentence: the record crosses from the school
 // straight to the student's device, and the proof backend never sees it.
 //
-// The endpoint is configurable because the school is a separate system:
+// Each school is reached at its own path, because each is an independent
+// vendor with its own system:
 //
-//   /api/school/graphql            the Vercel demo, standing in for one
-//   http://localhost:4000/graphql  a school service running on its own
+//   /api/school/{schoolId}/graphql       the Vercel demo, one path per school
+//   http://localhost:4000/{schoolId}/graphql   a school service running on its own
+//
+// The base is configurable via NEXT_PUBLIC_SCHOOL_API; every function below
+// takes the schoolId it is asking about and builds the full path from it.
 
 import type { Degree, School, Student, StudentStatus } from "@/types";
 
-const ENDPOINT = process.env.NEXT_PUBLIC_SCHOOL_API ?? "/api/school/graphql";
+const BASE = process.env.NEXT_PUBLIC_SCHOOL_API ?? "/api/school";
+
+function endpointFor(schoolId: string): string {
+  return `${BASE}/${schoolId}/graphql`;
+}
 
 export interface StudentSummary {
   id: string;
@@ -67,10 +75,11 @@ interface SchoolProfileResponse {
 }
 
 async function query<T>(
+  schoolId: string,
   gql: string,
   variables: Record<string, unknown> = {}
 ): Promise<T> {
-  const res = await fetch(ENDPOINT, {
+  const res = await fetch(endpointFor(schoolId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query: gql, variables }),
@@ -98,16 +107,18 @@ const SCHOOL_FIELDS = `
  * Separate from fetchSchoolProfile because only the proving path needs it, and
  * every other caller would be paying for a field it ignores.
  */
-export async function fetchCircuitPublicKey(): Promise<{ x: bigint; y: bigint }> {
+export async function fetchCircuitPublicKey(schoolId: string): Promise<{ x: bigint; y: bigint }> {
   const { school } = await query<{ school: { circuitPublicKey: { x: string; y: string } } }>(
+    schoolId,
     `query CircuitKey { school { circuitPublicKey { x y } } }`
   );
   return { x: BigInt(school.circuitPublicKey.x), y: BigInt(school.circuitPublicKey.y) };
 }
 
 /** The institution's public profile, including the key verifiers check against. */
-export async function fetchSchoolProfile(): Promise<School> {
+export async function fetchSchoolProfile(schoolId: string): Promise<School> {
   const { school } = await query<{ school: SchoolProfileResponse }>(
+    schoolId,
     `query SchoolProfile { school { ${SCHOOL_FIELDS} } }`
   );
 
@@ -130,10 +141,12 @@ export async function fetchSchoolProfile(): Promise<School> {
  * omitting it returns the conventional credential alone.
  */
 export async function fetchCredential(
+  schoolId: string,
   studentId: string,
   subjectCommitment?: string
 ): Promise<SignedCredential> {
   const { credential } = await query<{ credential: SignedCredential }>(
+    schoolId,
     `query Credential($studentId: ID!, $subjectCommitment: String) {
        credential(studentId: $studentId, subjectCommitment: $subjectCommitment) {
          schema
@@ -160,12 +173,10 @@ export async function fetchCredential(
  * Not part of the integration contract — a real school authenticates the
  * student rather than offering a roster to choose from.
  */
-export async function fetchDemoRoster(schoolId?: string): Promise<StudentSummary[]> {
+export async function fetchDemoRoster(schoolId: string): Promise<StudentSummary[]> {
   const { demoRoster } = await query<{ demoRoster: StudentSummary[] }>(
-    `query DemoRoster($schoolId: ID) {
-       demoRoster(schoolId: $schoolId) { id name schoolId }
-     }`,
-    { schoolId }
+    schoolId,
+    `query DemoRoster { demoRoster { id name schoolId } }`
   );
   return demoRoster;
 }
@@ -178,15 +189,15 @@ export async function fetchDemoRoster(schoolId?: string): Promise<StudentSummary
  * this demo does not, which is exactly why the schema marks it registrar-only.
  * It is NOT how a student's credential reaches the app.
  */
-export async function fetchRegistrar(schoolId?: string): Promise<Student[]> {
+export async function fetchRegistrar(schoolId: string): Promise<Student[]> {
   const { registrar } = await query<{ registrar: RegistrarRecord[] }>(
-    `query Registrar($schoolId: ID) {
-       registrar(schoolId: $schoolId) {
+    schoolId,
+    `query Registrar {
+       registrar {
          id name schoolId status gpaScaled gpaScale
          academicYear degree major enrolledAt expiresAt
        }
-     }`,
-    { schoolId }
+     }`
   );
 
   return registrar.map(toStudent);

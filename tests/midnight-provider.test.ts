@@ -14,7 +14,7 @@ import { loadSchoolData } from "@/lib/school/data";
 import { installMemoryLocalStorage } from "./helpers/local-storage";
 import type { ClaimRequest, Student } from "@/types";
 
-const schoolData = loadSchoolData();
+const schoolData = loadSchoolData("hanoi-university");
 
 /**
  * Points the school API client at the schema directly.

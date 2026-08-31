@@ -59,6 +59,9 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Generated slide export — not source, regenerate from docs/pitch-deck.html
+*.pptx
+
 # Deployment
 .vercel
 

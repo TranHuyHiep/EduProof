@@ -82,12 +82,18 @@ Với Alice thì cũng không lộ `3.72`, `372`, `Alice`, `Nguyen`, `SV001`.
 
 ## Cổng chất lượng
 
+Đo tại thời điểm nghiệm thu (2026-08-30):
+
 ```
 npm test                  251 test / 16 file
 npm run check:boundaries  4/4 luật kiến trúc
 npm run build             13 route, không warning
 npx tsc --noEmit          sạch
 ```
+
+Số hiện tại (2026-08-31, sau khi thêm `/guide` và multi-school API): 262 test /
+17 file, 15 route — xem [10-wave-1-plan.md](10-wave-1-plan.md). Chênh lệch là
+tính năng thêm sau nghiệm thu, không phải hồi quy.
 
 ---
 

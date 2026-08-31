@@ -8,6 +8,24 @@
       "issuerKeyId": "hu-issuer-key-01",
       "issuerPublicKey": "MCowBQYDK2VwAyEA5IvpI3Q7z16bC7JgyH8tHkypD3YLQX/Gb46i+86+uaE=",
       "verified": true
+    },
+    {
+      "id": "hcmc-tech",
+      "name": "Ho Chi Minh City University of Technology",
+      "shortName": "HCMUT",
+      "country": "Vietnam",
+      "issuerKeyId": "hcmct-issuer-key-01",
+      "issuerPublicKey": "MCowBQYDK2VwAyEAwtyT6tveV1UM/T6F7+96EgJY6r49E/Nn/GOdjPh6zLU=",
+      "verified": true
+    },
+    {
+      "id": "nus",
+      "name": "National University of Singapore",
+      "shortName": "NUS",
+      "country": "Singapore",
+      "issuerKeyId": "nus-issuer-key-01",
+      "issuerPublicKey": "MCowBQYDK2VwAyEAkjFykK/EC4whKY+cdRlP07R1MB/L0FelFTzK/p/Wb5U=",
+      "verified": true
     }
   ]
 }

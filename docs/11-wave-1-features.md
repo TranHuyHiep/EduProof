@@ -13,6 +13,9 @@ Kiến trúc và các quyết định đứng sau: [10-wave-1-plan.md](10-wave-1
 | Bên xác minh | `/verify`, `/verify/[proofId]` | Mở link hoặc dán mã proof, xem kết quả |
 | Nhà trường | `/school` | Xem hồ sơ trường, khoá công khai, credential đã cấp |
 
+Thêm `/guide` — hướng dẫn 5 bước cho người mới, dẫn thẳng qua toàn bộ luồng ở
+trên. Dựng cho người chấm, không phải một vai trò riêng.
+
 ## Luồng sinh viên
 
 ```
@@ -136,8 +139,11 @@ field nào chứa được giá trị thật.
 ## Chưa có ở Wave 1
 
 - Link proof chỉ mở được trên thiết bị đã tạo (chưa có server store).
-- Chưa kết nối ví Lace.
+- Ví Lace **kết nối được** (`lib/wallet.ts`) và cho địa chỉ thật, nhưng chưa
+  dùng để chứng minh quyền sở hữu bằng chữ ký (ownership-challenge) — đó là
+  Wave 2, mục W2.1.
 - Proof không tự nộp lên chain: circuit chạy local, còn chain thì **đọc**,
-  không ghi, lúc xác minh.
+  không ghi, lúc xác minh. Gửi proof như transaction thật cũng là Wave 2,
+  mục W2.1b.
 - Chưa có xác thực nhân viên phòng đào tạo — endpoint trả về đúng thứ EduProof
   sinh ra để bảo vệ. Ghi rõ ở đây thay vì lặng lẽ bỏ qua.

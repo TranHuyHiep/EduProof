@@ -211,8 +211,8 @@ function rootValue(data: SchoolData) {
   return {
     school: async () => ({
       ...data.school,
-      issuerPublicKey: issuerPublicKey(),
-      circuitPublicKey: pointToStrings(await circuitPublicKey()),
+      issuerPublicKey: issuerPublicKey(data.school.id),
+      circuitPublicKey: pointToStrings(await circuitPublicKey(data.school.id)),
     }),
 
     credential: async (args: { studentId: string; subjectCommitment?: string }) => {
