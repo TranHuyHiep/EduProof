@@ -8,6 +8,14 @@ const nextConfig: NextConfig = {
   // See docs/32-deployment.md.
   output: "standalone",
 
+  // The school route signs with a hand-rolled Schnorr over JubJub
+  // (lib/midnight/schnorr.ts), which loads compact-runtime's WASM on Node via
+  // fs at runtime rather than a static import — file tracing cannot see that,
+  // so the .wasm is dropped from the serverless bundle unless listed here.
+  outputFileTracingIncludes: {
+    "/api/school/graphql": ["./node_modules/@midnight-ntwrk/**/*.wasm"],
+  },
+
   webpack: (config, { isServer }) => {
     // The Midnight runtime is WebAssembly, which webpack 5 does not enable by
     // default. Without this the build fails outright on any import of it.
