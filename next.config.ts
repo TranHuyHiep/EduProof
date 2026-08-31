@@ -9,12 +9,18 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   // The school route signs with a hand-rolled Schnorr over JubJub
-  // (lib/midnight/schnorr.ts), which loads compact-runtime's WASM on Node via
-  // fs at runtime rather than a static import — file tracing cannot see that,
-  // so the .wasm is dropped from the serverless bundle unless listed here.
-  outputFileTracingIncludes: {
-    "/api/school/graphql": ["./node_modules/@midnight-ntwrk/**/*.wasm"],
-  },
+  // (lib/midnight/schnorr.ts), which pulls in compact-runtime's WASM. These
+  // packages resolve their .wasm file with `join(__dirname, '...wasm')` at
+  // runtime, so webpack bundling them (which rewrites __dirname's meaning)
+  // breaks that lookup even when outputFileTracingIncludes copies the file —
+  // Vercel's Function re-roots node_modules, so the path no longer lines up.
+  // Marking them external keeps them as plain `require()`s from node_modules,
+  // which both platforms copy in with their original layout intact.
+  serverExternalPackages: [
+    "@midnight-ntwrk/onchain-runtime-v3",
+    "@midnight-ntwrk/zkir-v2",
+    "@midnight-ntwrk/ledger-v8",
+  ],
 
   webpack: (config, { isServer }) => {
     // The Midnight runtime is WebAssembly, which webpack 5 does not enable by
