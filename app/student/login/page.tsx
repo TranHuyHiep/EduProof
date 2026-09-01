@@ -96,7 +96,7 @@ export default function ConnectPage() {
       <Steps current={0} labels={["Connect", "Credential", "Statements", "Proof"]} />
 
       {stage === "connect" ? (
-        <>
+        <div className="rise space-y-8">
           <header>
             <h1 className="title text-4xl">Connect your wallet</h1>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
@@ -143,9 +143,9 @@ export default function ConnectPage() {
               </>
             )}
           </div>
-        </>
+        </div>
       ) : stage === "school" ? (
-        <>
+        <div className="rise space-y-8">
           <header>
             <h1 className="title text-4xl">Select your institution</h1>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
@@ -160,7 +160,7 @@ export default function ConnectPage() {
                 <button
                   key={s.id}
                   onClick={() => pickSchool(s.id)}
-                  className="focusable group flex w-full items-center justify-between px-6 py-4 text-left transition-colors hover:bg-paper-deep/60"
+                  className="rise-stagger focusable group flex w-full items-center justify-between px-6 py-4 text-left transition-colors hover:bg-paper-deep/60"
                 >
                   <div>
                     <div className="text-[15px] text-ink">{s.name}</div>
@@ -174,9 +174,9 @@ export default function ConnectPage() {
               ))}
             </div>
           </div>
-        </>
+        </div>
       ) : (
-        <>
+        <div className="rise space-y-8">
           <header>
             <h1 className="title text-4xl">Collect your credential</h1>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
@@ -185,11 +185,11 @@ export default function ConnectPage() {
                 {wallet ? shortenMiddle(wallet.address) : "…"}
               </span>
               {wallet?.isDemo ? (
-                <span className="ml-2 text-[11px] uppercase tracking-wider text-caution">
+                <span className="rise ml-2 text-[11px] uppercase tracking-wider text-caution">
                   demo key
                 </span>
               ) : wallet?.walletName ? (
-                <span className="ml-2 text-[11px] uppercase tracking-wider text-proven">
+                <span className="rise ml-2 text-[11px] uppercase tracking-wider text-proven">
                   via {wallet.walletName}
                 </span>
               ) : null}
@@ -224,7 +224,7 @@ export default function ConnectPage() {
                     key={s.id}
                     onClick={() => claimIdentity(s)}
                     disabled={busy}
-                    className="focusable group flex w-full items-center justify-between px-6 py-3.5 text-left transition-colors hover:bg-paper-deep/60 disabled:opacity-50"
+                    className="rise-stagger focusable group flex w-full items-center justify-between px-6 py-3.5 text-left transition-colors hover:bg-paper-deep/60 disabled:opacity-50"
                   >
                     <span className="text-[15px] text-ink">{s.name}</span>
                     <span className="flex items-center gap-3">
@@ -241,7 +241,7 @@ export default function ConnectPage() {
           </div>
 
           <SchoolBoundaryNote />
-        </>
+        </div>
       )}
 
       {error && stage === "connect" && (

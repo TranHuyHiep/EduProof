@@ -72,7 +72,10 @@ export default function VerifyLookupPage() {
               placeholder="https://…/verify/pf_a1b2c3  or  pf_a1b2c3"
               autoComplete="off"
               spellCheck={false}
-              className="focusable mono w-full border border-rule bg-surface py-3 pl-10 pr-3 text-xs text-ink placeholder:text-ink-faint"
+              aria-invalid={error ? true : undefined}
+              className={`focusable mono w-full border bg-surface py-3 pl-10 pr-3 text-xs text-ink placeholder:text-ink-faint transition-colors ${
+                error ? "border-failed" : "border-rule"
+              }`}
             />
           </div>
           <button
@@ -89,14 +92,14 @@ export default function VerifyLookupPage() {
       </form>
 
       {history.length > 0 && (
-        <section>
+        <section className="rise">
           <h2 className="eyebrow rule pb-2">Recently checked</h2>
           <div className="rows">
             {history.map((v) => (
               <Link
                 key={v.proofId}
                 href={`/verify/${v.proofId}`}
-                className="focusable group flex items-baseline justify-between gap-4 py-3"
+                className="rise-stagger focusable group flex items-baseline justify-between gap-4 py-3"
               >
                 <span className="mono text-xs text-ink">{v.proofId}</span>
                 <span className="flex items-baseline gap-3">

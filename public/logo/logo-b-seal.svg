@@ -1,0 +1,25 @@
+<svg width="170" height="170" viewBox="0 0 170 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="85" cy="85" r="78" fill="#1a1814"/>
+  <circle cx="85" cy="85" r="65" fill="none" stroke="#faf9f5" stroke-width="1.6"/>
+  <circle cx="85" cy="85" r="65" fill="none" stroke="#faf9f5" stroke-width="1" stroke-dasharray="1.5 5" opacity="0.55"/>
+
+  <g stroke="#faf9f5" stroke-width="1.2" opacity="0.8">
+    <line x1="85" y1="85" x2="85" y2="44"/>
+    <line x1="85" y1="85" x2="121" y2="65"/>
+    <line x1="85" y1="85" x2="121" y2="107"/>
+    <line x1="85" y1="85" x2="85" y2="128"/>
+    <line x1="85" y1="85" x2="49" y2="107"/>
+    <line x1="85" y1="85" x2="49" y2="65"/>
+  </g>
+  <g fill="#1a1814" stroke="#faf9f5" stroke-width="1.4">
+    <circle cx="85" cy="44" r="4.5"/>
+    <circle cx="121" cy="65" r="4.5"/>
+    <circle cx="121" cy="107" r="4.5"/>
+    <circle cx="85" cy="128" r="4.5"/>
+    <circle cx="49" cy="107" r="4.5"/>
+    <circle cx="49" cy="65" r="4.5"/>
+  </g>
+
+  <circle cx="85" cy="85" r="16" fill="#a6402f"/>
+  <path d="M77 85 L83 91 L95 76" stroke="#faf9f5" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

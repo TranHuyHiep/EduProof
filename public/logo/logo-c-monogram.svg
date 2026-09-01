@@ -1,0 +1,9 @@
+<svg width="176" height="176" viewBox="0 0 176 176" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M88 6 L162 32 V82 C162 120 132 150 88 164 C44 150 14 120 14 82 V32 Z"
+        fill="#5c4632"/>
+  <path d="M88 20 L148 40 V82 C148 112 124 136 88 148 C52 136 28 112 28 82 V40 Z"
+        fill="none" stroke="#4a7a5e" stroke-width="2"/>
+
+  <text x="80" y="106" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="68" fill="#faf9f5">E</text>
+  <text x="119" y="112" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="52" fill="#faf9f5">P</text>
+</svg>

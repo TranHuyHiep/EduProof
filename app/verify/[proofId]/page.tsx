@@ -104,7 +104,10 @@ export default function VerifyProofPage({
   return (
     <div className="mx-auto max-w-2xl space-y-10">
       {/* The seal, and the verdict beside it. */}
-      <header className="rise flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left">
+      <header
+        className="rise flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left"
+        style={{ animationDelay: "0ms" }}
+      >
         <Seal proofId={proof.proofId} valid={valid} />
         <div>
           <p className="eyebrow">Certificate of attestation</p>
@@ -120,7 +123,7 @@ export default function VerifyProofPage({
       </header>
 
       {/* What was proven. */}
-      <section>
+      <section className="rise" style={{ animationDelay: "90ms" }}>
         <div className="rule flex items-baseline justify-between pb-2">
           <h2 className="eyebrow">Statements proven</h2>
           <span className="text-[11px] tabular-nums text-ink-faint">
@@ -135,7 +138,7 @@ export default function VerifyProofPage({
       </section>
 
       {/* What was not disclosed — the point of the product. */}
-      <section>
+      <section className="rise" style={{ animationDelay: "180ms" }}>
         <h2 className="eyebrow rule pb-2">Withheld from this page</h2>
         <p className="pt-4 text-sm leading-relaxed text-ink-soft">
           The statements above were proven without disclosing:
@@ -151,7 +154,7 @@ export default function VerifyProofPage({
       </section>
 
       {/* Issuer. */}
-      <section>
+      <section className="rise" style={{ animationDelay: "270ms" }}>
         <h2 className="eyebrow rule pb-2">Issuing institution</h2>
         <div className="flex items-baseline justify-between gap-4 pt-4">
           <div>
@@ -166,7 +169,7 @@ export default function VerifyProofPage({
       </section>
 
       {/* The register entry. */}
-      <section>
+      <section className="rise" style={{ animationDelay: "360ms" }}>
         <h2 className="eyebrow rule pb-2">Register</h2>
         <dl className="rows pt-1">
           <Entry label="Proof reference" value={proof.proofId} mono />
@@ -257,7 +260,10 @@ export default function VerifyProofPage({
         )}
       </section>
 
-      <footer className="rule-soft flex flex-wrap items-center justify-between gap-4 border-t pt-6">
+      <footer
+        className="rise rule-soft flex flex-wrap items-center justify-between gap-4 border-t pt-6"
+        style={{ animationDelay: "440ms" }}
+      >
         <p className="max-w-sm text-xs leading-relaxed text-ink-faint">
           The subject handle is opaque and cannot be traced back to a student.
         </p>

@@ -50,12 +50,18 @@ thêm file mới không phải đánh số lại cả thư mục.
 
 | # | File | Nói về |
 |---|---|---|
-| 40 | [40-wave-2-features.md](40-wave-2-features.md) | Wave 2 sẽ làm gì |
+| 40 | [40-wave-2-features.md](40-wave-2-features.md) | Wave 2 — toàn bộ mục tiêu và lý do kỹ thuật, W2.1 đến W2.7 |
 | 41 | [41-wave-3-features.md](41-wave-3-features.md) | Wave 3 sẽ làm gì |
 | 42 | [23-references.md](23-references.md) | Link tài liệu Midnight, đã kiểm chứng còn sống |
 
-Mỗi Wave có file **features**. Riêng Wave 1 có thêm **plan** và **go-live**, vì
-nó là Wave đang làm — kế hoạch Wave sau chỉ viết khi tới lượt.
+## 5x — Wave 2: kế hoạch thực thi
+
+| # | File | Nói về |
+|---|---|---|
+| 50 | [50-wave-2-plan.md](50-wave-2-plan.md) | **Phạm vi đã chốt** (chỉ W2.1 + W2.1b), lịch theo tuần, ai làm gì, tín hiệu dừng lại |
+
+`40` nói **mục tiêu và lý do**; `50` nói **làm gì trước, xong khi nào biết**.
+Không lặp nội dung — đọc cả hai khi bắt tay vào Wave 2.
 
 ---
 
