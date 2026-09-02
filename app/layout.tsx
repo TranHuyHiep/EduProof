@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { NETWORK, explorerContractUrl, midnightConfig, providerName } from "@/lib/midnight/config";
+import { WalletContextProvider } from "@/lib/wallet-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         hydrates and patches every other mismatch normally.
       */}
       <body className="flex min-h-screen flex-col" suppressHydrationWarning>
+       <WalletContextProvider>
         {/*
           Says which proving system is actually running. Hardcoding it was
           wrong in both directions once the circuit existed: it understated the
@@ -54,10 +57,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <header className="no-print border-b border-rule bg-paper/95 backdrop-blur">
           <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-            <Link href="/" className="focusable flex items-baseline gap-2.5">
-              <span className="title text-lg">EduProof</span>
-              <span className="hidden text-[11px] uppercase tracking-[0.14em] text-ink-faint sm:inline">
-                Academic attestation
+            <Link href="/" className="focusable flex items-center gap-2.5">
+              <Image src="/logo/logo-c-monogram.svg" alt="" width={36} height={36} />
+              <span className="flex items-baseline gap-2.5">
+                <span className="title text-lg">EduProof</span>
+                <span className="hidden text-[11px] uppercase tracking-[0.14em] text-ink-faint sm:inline">
+                  Academic attestation
+                </span>
               </span>
             </Link>
 
@@ -83,6 +89,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span>Records stay with the institution that issued them.</span>
           </div>
         </footer>
+       </WalletContextProvider>
       </body>
     </html>
   );

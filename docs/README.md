@@ -50,12 +50,20 @@ thêm file mới không phải đánh số lại cả thư mục.
 
 | # | File | Nói về |
 |---|---|---|
-| 40 | [40-wave-2-features.md](40-wave-2-features.md) | Wave 2 sẽ làm gì |
+| 40 | [40-wave-2-features.md](40-wave-2-features.md) | Wave 2 — toàn bộ mục tiêu và lý do kỹ thuật, W2.1 đến W2.7 |
 | 41 | [41-wave-3-features.md](41-wave-3-features.md) | Wave 3 sẽ làm gì |
 | 42 | [23-references.md](23-references.md) | Link tài liệu Midnight, đã kiểm chứng còn sống |
 
-Mỗi Wave có file **features**. Riêng Wave 1 có thêm **plan** và **go-live**, vì
-nó là Wave đang làm — kế hoạch Wave sau chỉ viết khi tới lượt.
+## 5x — Wave 2: kế hoạch thực thi
+
+| # | File | Nói về |
+|---|---|---|
+| 50 | [50-wave-2-plan.md](50-wave-2-plan.md) | **Phạm vi đã chốt** (chỉ W2.1 + W2.1b), lịch theo tuần, ai làm gì, tín hiệu dừng lại |
+| 51 | [51-w2-1b-implementation-plan.md](51-w2-1b-implementation-plan.md) | W2.1b: adapter ví ↔ contract đã code xong, phát hiện mới về browser bundle, chưa test trên preprod thật |
+
+`40` nói **mục tiêu và lý do**; `50` nói **làm gì trước, xong khi nào biết**;
+`51` nói **code cụ thể ra sao** cho riêng W2.1b (mục rủi ro nhất) và trạng
+thái thật của nó. Đọc cả ba khi bắt tay vào Wave 2.
 
 ---
 

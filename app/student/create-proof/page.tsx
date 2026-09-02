@@ -19,6 +19,7 @@ export default function CreateProofPage() {
   const { student, loading } = useStudent();
 
   const [claims, setClaims] = useState<ClaimRequest[]>(() => PRESETS[1].claims);
+  const [activePreset, setActivePreset] = useState<string | null>(PRESETS[1].id);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +46,7 @@ export default function CreateProofPage() {
   }
 
   function update(index: number, patch: Partial<ClaimRequest>) {
+    setActivePreset(null);
     setClaims((rows) =>
       rows.map((row, i) => {
         if (i !== index) return row;
@@ -62,6 +64,7 @@ export default function CreateProofPage() {
     const unused = ATTRIBUTES.find((a) => !claims.some((c) => c.attribute === a.id));
     const candidate = defaultClaim((unused?.id ?? ATTRIBUTES[0].id) as PrivateAttribute);
     if (claims.some((c) => isDuplicate(c, candidate))) return;
+    setActivePreset(null);
     setClaims((rows) => [...rows, candidate]);
   }
 
@@ -100,9 +103,14 @@ export default function CreateProofPage() {
         {PRESETS.map((p) => (
           <button
             key={p.id}
-            onClick={() => setClaims(p.claims)}
+            onClick={() => { setActivePreset(p.id); setClaims(p.claims); }}
             title={p.context}
-            className="focusable border border-rule bg-surface px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-ink-faint hover:text-seal-600"
+            aria-pressed={activePreset === p.id}
+            className={`focusable border px-3 py-1.5 text-xs transition-colors ${
+              activePreset === p.id
+                ? "border-seal-500 bg-seal-50 text-seal-600"
+                : "border-rule bg-surface text-ink-soft hover:border-ink-faint hover:text-seal-600"
+            }`}
           >
             {p.name}
           </button>
@@ -118,7 +126,7 @@ export default function CreateProofPage() {
               claim={claim}
               satisfied={outcomes[i]?.satisfied ?? true}
               onChange={(patch) => update(i, patch)}
-              onRemove={claims.length > 1 ? () => setClaims((r) => r.filter((_, j) => j !== i)) : undefined}
+              onRemove={claims.length > 1 ? () => { setActivePreset(null); setClaims((r) => r.filter((_, j) => j !== i)); } : undefined}
             />
           ))}
 
@@ -188,7 +196,11 @@ export default function CreateProofPage() {
           <IconArrowLeft size={1} />
           Back
         </Link>
-        <Button onClick={generate} disabled={generating || claims.length === 0}>
+        <Button
+          onClick={generate}
+          disabled={generating || claims.length === 0}
+          className={generating ? "working" : ""}
+        >
           {generating ? "Generating…" : "Generate proof"}
         </Button>
       </div>
@@ -210,7 +222,7 @@ function ClaimRow({
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-2 p-3.5 transition-colors sm:flex-nowrap ${
+      className={`rise flex flex-wrap items-center gap-2 p-3.5 transition-colors sm:flex-nowrap ${
         satisfied ? "" : "bg-caution-bg"
       }`}
     >

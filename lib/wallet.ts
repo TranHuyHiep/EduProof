@@ -1,9 +1,14 @@
 // Wallet connection.
 //
 // Looks for a Midnight wallet extension (Lace, 1am) via the DApp Connector
-// API and falls back to a generated demo keypair when none is installed. The
-// fallback exists so the demo never depends on a browser extension being
-// present on the machine — the flow it drives is identical either way.
+// API. Connecting to a real extension and falling back to a demo keypair are
+// two DELIBERATE, SEPARATE actions — never one silently substituted for the
+// other. An earlier version of this file treated any connection failure
+// (extension missing, user declined, extension misbehaving) as "fall back to
+// demo", which meant a student — or anyone testing a real transaction — could
+// not tell whether they were holding a real wallet or a fake one. Signing a
+// real transaction needs the real WalletConnectedAPI kept alive afterwards,
+// which a silently-substituted demo key can never provide.
 //
 // This is NOT the Cardano CIP-30 standard (`window.cardano.*`). Midnight
 // wallets inject under `window.midnight[<key>]`, one entry per wallet, and the
@@ -12,7 +17,7 @@
 // @midnight-ntwrk/dapp-connector-api, and docs/22-lessons.md for why guessing
 // a wallet API from a different chain's convention costs hours here.
 
-import type { InitialAPI } from "@midnight-ntwrk/dapp-connector-api";
+import type { InitialAPI, WalletConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
 import { NETWORK } from "@/lib/midnight/config";
 
 const DEMO_WALLET_KEY = "eduproof.demo.wallet";
@@ -23,6 +28,13 @@ export interface WalletConnection {
   isDemo: boolean;
   /** The connected wallet's display name. Only set when isDemo is false. */
   walletName?: string;
+  /**
+   * The live connected API, present only for a real wallet. This is what a
+   * caller needs to sign and submit an actual transaction (see
+   * lib/wallet-context.tsx) — a demo connection has nothing behind it to sign
+   * with.
+   */
+  api?: WalletConnectedAPI;
 }
 
 /** Wallets currently injected into `window.midnight`, keyed as the wallet chose. */
@@ -46,44 +58,48 @@ function demoAddress(): string {
   return address;
 }
 
-/**
- * Connects to one specific injected wallet by key (as returned by
- * `installedWallets()`), falling back to a demo address on any failure —
- * the user declining the connection, or the extension misbehaving.
- */
-export async function connectInjectedWallet(key: string): Promise<WalletConnection> {
-  const wallet = installedWallets().find((w) => w.key === key);
-  if (!wallet) return { address: demoAddress(), isDemo: true };
-
-  try {
-    const connected = await wallet.api.connect(NETWORK);
-    const { unshieldedAddress } = await connected.getUnshieldedAddress();
-    if (unshieldedAddress) {
-      return { address: unshieldedAddress, isDemo: false, walletName: wallet.api.name };
-    }
-  } catch {
-    // User declined, or the extension misbehaved — fall through to demo mode
-    // rather than dead-ending the flow.
-  }
-
+/** A demo identity, chosen explicitly — never substituted for a failed real connection. */
+export function connectDemoWallet(): WalletConnection {
   return { address: demoAddress(), isDemo: true };
 }
 
 /**
- * Connects a wallet. When exactly one is installed, connects it directly.
- * When none are installed, returns a demo address immediately. When more than
- * one is installed, the caller must ask the user which one — see
- * `installedWallets()` — rather than guessing.
+ * Connects to one specific injected wallet by key (as returned by
+ * `installedWallets()`).
+ *
+ * @throws if the wallet is not found, the user declines the connection, or
+ *   the extension does not return an address. Callers must show this to the
+ *   student rather than quietly treating it as "use the demo instead" — see
+ *   the file header.
+ */
+export async function connectInjectedWallet(key: string): Promise<WalletConnection> {
+  const wallet = installedWallets().find((w) => w.key === key);
+  if (!wallet) throw new Error("That wallet is no longer available. Refresh and try again.");
+
+  const connected = await wallet.api.connect(NETWORK);
+  const { unshieldedAddress } = await connected.getUnshieldedAddress();
+  if (!unshieldedAddress) {
+    throw new Error(`${wallet.api.name} did not return an address.`);
+  }
+  return { address: unshieldedAddress, isDemo: false, walletName: wallet.api.name, api: connected };
+}
+
+/**
+ * Connects the one installed wallet directly.
+ *
+ * @throws if no wallet is installed, or more than one is (the caller must
+ *   offer a picker via `installedWallets()` instead of guessing which one),
+ *   or the connection itself fails — see `connectInjectedWallet`.
  */
 export async function connectWallet(): Promise<WalletConnection> {
   const wallets = installedWallets();
-  if (wallets.length === 1) return connectInjectedWallet(wallets[0].key);
-  if (wallets.length === 0) return { address: demoAddress(), isDemo: true };
-
-  // More than one wallet installed: the login page should have offered a
-  // picker instead of calling this. Connecting the first one silently would
-  // pick on the user's behalf, so fall back to demo rather than guess.
-  return { address: demoAddress(), isDemo: true };
+  if (wallets.length === 0) {
+    throw new Error("No Midnight wallet extension found. Install Lace, or use the demo wallet.");
+  }
+  if (wallets.length > 1) {
+    throw new Error("More than one wallet is installed — pick one instead of connecting blindly.");
+  }
+  return connectInjectedWallet(wallets[0].key);
 }
 
 /** Shortens an address for display: `addr_demo1a3f…9c2b`. */

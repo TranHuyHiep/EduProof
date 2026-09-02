@@ -5,8 +5,9 @@ import { Button, EmptyState, SchoolBoundaryNote, Skeleton, Steps } from "@/compo
 import { IconAlert, IconArrowRight, IconWallet } from "@/components/icons";
 import { getSchools } from "@/lib/data";
 import { fetchCredential, fetchDemoRoster, type StudentSummary } from "@/lib/school-api";
-import { setCredential, setSessionSchoolId, setWalletAddress } from "@/lib/session";
-import { connectInjectedWallet, connectWallet, installedWallets, type WalletConnection } from "@/lib/wallet";
+import { setCredential, setSessionSchoolId } from "@/lib/session";
+import { connectDemoWallet, connectInjectedWallet, connectWallet, installedWallets } from "@/lib/wallet";
+import { useWallet } from "@/lib/wallet-context";
 import { shortenMiddle } from "@/lib/format";
 
 type Stage = "connect" | "school" | "choose";
@@ -14,9 +15,9 @@ type Stage = "connect" | "school" | "choose";
 export default function ConnectPage() {
   const router = useRouter();
   const schools = getSchools();
+  const { wallet, setWallet } = useWallet();
 
   const [stage, setStage] = useState<Stage>("connect");
-  const [wallet, setWallet] = useState<WalletConnection | null>(null);
   const [pickWallet, setPickWallet] = useState<Array<{ key: string; name: string }> | null>(null);
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [students, setStudents] = useState<StudentSummary[] | null>(null);
@@ -32,9 +33,8 @@ export default function ConnectPage() {
       .catch((e: Error) => { setError(e.message); setStudents([]); });
   }, [stage, schoolId]);
 
-  function afterConnect(connection: WalletConnection) {
+  function afterConnect(connection: import("@/lib/wallet").WalletConnection) {
     setWallet(connection);
-    setWalletAddress(connection.address);
     setStage(schools.length > 1 ? "school" : "choose");
     if (schools.length === 1) setSchoolId(schools[0].id);
   }
@@ -76,6 +76,12 @@ export default function ConnectPage() {
     }
   }
 
+  /** A deliberate, visible choice — never a silent stand-in for a failed real connection. */
+  function useDemo() {
+    setError(null);
+    afterConnect(connectDemoWallet());
+  }
+
   async function claimIdentity(student: StudentSummary) {
     if (!schoolId) return;
     setBusy(true);
@@ -96,7 +102,7 @@ export default function ConnectPage() {
       <Steps current={0} labels={["Connect", "Credential", "Statements", "Proof"]} />
 
       {stage === "connect" ? (
-        <>
+        <div className="rise space-y-8">
           <header>
             <h1 className="title text-4xl">Connect your wallet</h1>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
@@ -136,16 +142,23 @@ export default function ConnectPage() {
                   {busy ? "Connecting…" : "Connect wallet"}
                 </Button>
                 <p className="mt-4 text-xs leading-relaxed text-ink-faint">
-                  Looks for a Midnight wallet extension — Lace or 1am — and falls back
-                  to a demo key so the flow works without one installed. Proving that
-                  you own the wallet is wave two&rsquo;s job.
+                  Looks for a Midnight wallet extension — Lace or 1am. Signing a real
+                  transaction later needs this real connection; proving that you own
+                  the wallet is wave two&rsquo;s job.
                 </p>
+                <button
+                  onClick={useDemo}
+                  disabled={busy}
+                  className="focusable mt-3 text-xs text-ink-faint underline decoration-rule underline-offset-4 transition-colors hover:text-ink-soft disabled:opacity-50"
+                >
+                  No wallet installed? Use a demo wallet instead
+                </button>
               </>
             )}
           </div>
-        </>
+        </div>
       ) : stage === "school" ? (
-        <>
+        <div className="rise space-y-8">
           <header>
             <h1 className="title text-4xl">Select your institution</h1>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
@@ -160,7 +173,7 @@ export default function ConnectPage() {
                 <button
                   key={s.id}
                   onClick={() => pickSchool(s.id)}
-                  className="focusable group flex w-full items-center justify-between px-6 py-4 text-left transition-colors hover:bg-paper-deep/60"
+                  className="rise-stagger focusable group flex w-full items-center justify-between px-6 py-4 text-left transition-colors hover:bg-paper-deep/60"
                 >
                   <div>
                     <div className="text-[15px] text-ink">{s.name}</div>
@@ -174,9 +187,9 @@ export default function ConnectPage() {
               ))}
             </div>
           </div>
-        </>
+        </div>
       ) : (
-        <>
+        <div className="rise space-y-8">
           <header>
             <h1 className="title text-4xl">Collect your credential</h1>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
@@ -185,11 +198,11 @@ export default function ConnectPage() {
                 {wallet ? shortenMiddle(wallet.address) : "…"}
               </span>
               {wallet?.isDemo ? (
-                <span className="ml-2 text-[11px] uppercase tracking-wider text-caution">
+                <span className="rise ml-2 text-[11px] uppercase tracking-wider text-caution">
                   demo key
                 </span>
               ) : wallet?.walletName ? (
-                <span className="ml-2 text-[11px] uppercase tracking-wider text-proven">
+                <span className="rise ml-2 text-[11px] uppercase tracking-wider text-proven">
                   via {wallet.walletName}
                 </span>
               ) : null}
@@ -224,7 +237,7 @@ export default function ConnectPage() {
                     key={s.id}
                     onClick={() => claimIdentity(s)}
                     disabled={busy}
-                    className="focusable group flex w-full items-center justify-between px-6 py-3.5 text-left transition-colors hover:bg-paper-deep/60 disabled:opacity-50"
+                    className="rise-stagger focusable group flex w-full items-center justify-between px-6 py-3.5 text-left transition-colors hover:bg-paper-deep/60 disabled:opacity-50"
                   >
                     <span className="text-[15px] text-ink">{s.name}</span>
                     <span className="flex items-center gap-3">
@@ -241,7 +254,7 @@ export default function ConnectPage() {
           </div>
 
           <SchoolBoundaryNote />
-        </>
+        </div>
       )}
 
       {error && stage === "connect" && (
