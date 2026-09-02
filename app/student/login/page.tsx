@@ -5,8 +5,9 @@ import { Button, EmptyState, SchoolBoundaryNote, Skeleton, Steps } from "@/compo
 import { IconAlert, IconArrowRight, IconWallet } from "@/components/icons";
 import { getSchools } from "@/lib/data";
 import { fetchCredential, fetchDemoRoster, type StudentSummary } from "@/lib/school-api";
-import { setCredential, setSessionSchoolId, setWalletAddress } from "@/lib/session";
-import { connectInjectedWallet, connectWallet, installedWallets, type WalletConnection } from "@/lib/wallet";
+import { setCredential, setSessionSchoolId } from "@/lib/session";
+import { connectDemoWallet, connectInjectedWallet, connectWallet, installedWallets } from "@/lib/wallet";
+import { useWallet } from "@/lib/wallet-context";
 import { shortenMiddle } from "@/lib/format";
 
 type Stage = "connect" | "school" | "choose";
@@ -14,9 +15,9 @@ type Stage = "connect" | "school" | "choose";
 export default function ConnectPage() {
   const router = useRouter();
   const schools = getSchools();
+  const { wallet, setWallet } = useWallet();
 
   const [stage, setStage] = useState<Stage>("connect");
-  const [wallet, setWallet] = useState<WalletConnection | null>(null);
   const [pickWallet, setPickWallet] = useState<Array<{ key: string; name: string }> | null>(null);
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [students, setStudents] = useState<StudentSummary[] | null>(null);
@@ -32,9 +33,8 @@ export default function ConnectPage() {
       .catch((e: Error) => { setError(e.message); setStudents([]); });
   }, [stage, schoolId]);
 
-  function afterConnect(connection: WalletConnection) {
+  function afterConnect(connection: import("@/lib/wallet").WalletConnection) {
     setWallet(connection);
-    setWalletAddress(connection.address);
     setStage(schools.length > 1 ? "school" : "choose");
     if (schools.length === 1) setSchoolId(schools[0].id);
   }
@@ -74,6 +74,12 @@ export default function ConnectPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /** A deliberate, visible choice — never a silent stand-in for a failed real connection. */
+  function useDemo() {
+    setError(null);
+    afterConnect(connectDemoWallet());
   }
 
   async function claimIdentity(student: StudentSummary) {
@@ -136,10 +142,17 @@ export default function ConnectPage() {
                   {busy ? "Connecting…" : "Connect wallet"}
                 </Button>
                 <p className="mt-4 text-xs leading-relaxed text-ink-faint">
-                  Looks for a Midnight wallet extension — Lace or 1am — and falls back
-                  to a demo key so the flow works without one installed. Proving that
-                  you own the wallet is wave two&rsquo;s job.
+                  Looks for a Midnight wallet extension — Lace or 1am. Signing a real
+                  transaction later needs this real connection; proving that you own
+                  the wallet is wave two&rsquo;s job.
                 </p>
+                <button
+                  onClick={useDemo}
+                  disabled={busy}
+                  className="focusable mt-3 text-xs text-ink-faint underline decoration-rule underline-offset-4 transition-colors hover:text-ink-soft disabled:opacity-50"
+                >
+                  No wallet installed? Use a demo wallet instead
+                </button>
               </>
             )}
           </div>

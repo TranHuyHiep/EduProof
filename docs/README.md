@@ -59,9 +59,11 @@ thêm file mới không phải đánh số lại cả thư mục.
 | # | File | Nói về |
 |---|---|---|
 | 50 | [50-wave-2-plan.md](50-wave-2-plan.md) | **Phạm vi đã chốt** (chỉ W2.1 + W2.1b), lịch theo tuần, ai làm gì, tín hiệu dừng lại |
+| 51 | [51-w2-1b-implementation-plan.md](51-w2-1b-implementation-plan.md) | W2.1b: adapter ví ↔ contract đã code xong, phát hiện mới về browser bundle, chưa test trên preprod thật |
 
-`40` nói **mục tiêu và lý do**; `50` nói **làm gì trước, xong khi nào biết**.
-Không lặp nội dung — đọc cả hai khi bắt tay vào Wave 2.
+`40` nói **mục tiêu và lý do**; `50` nói **làm gì trước, xong khi nào biết**;
+`51` nói **code cụ thể ra sao** cho riêng W2.1b (mục rủi ro nhất) và trạng
+thái thật của nó. Đọc cả ba khi bắt tay vào Wave 2.
 
 ---
 

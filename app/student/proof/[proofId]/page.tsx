@@ -6,7 +6,23 @@ import { Seal } from "@/components/seal";
 import { IconAlert, IconArrowRight, IconCopy, IconCheck, IconLock } from "@/components/icons";
 import { ATTRIBUTES, proofStore } from "@/lib/proof";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { explorerTxUrl, midnightConfig, providerName } from "@/lib/midnight/config";
+import { connectWallet, installedWallets } from "@/lib/wallet";
+import { useWallet } from "@/lib/wallet-context";
+import { useStudent } from "@/lib/use-student";
 import type { Proof } from "@/types";
+
+// "waiting-wallet" covers signing AND block confirmation: publishProof()
+// awaits the whole chain internally (balance, sign, submit, watchForTxData)
+// as one call, so there is no observable moment between "sent to wallet" and
+// "confirmed" to report as a separate stage without faking progress.
+type PublishState =
+  | { stage: "idle" }
+  | { stage: "connecting" }
+  | { stage: "building" }
+  | { stage: "waiting-wallet" }
+  | { stage: "done"; txId: string }
+  | { stage: "error"; message: string };
 
 /** The student's own view of a proof they just issued, with the share link. */
 export default function IssuedProofPage({
@@ -16,6 +32,9 @@ export default function IssuedProofPage({
   const [proof, setProof] = useState<Proof | null | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   const [link, setLink] = useState("");
+  const { student } = useStudent();
+  const { wallet, setWallet } = useWallet();
+  const [publish, setPublish] = useState<Record<number, PublishState>>({});
 
   useEffect(() => {
     setLink(`${window.location.origin}/verify/${proofId}`);
@@ -29,6 +48,56 @@ export default function IssuedProofPage({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       /* clipboard blocked — the link is selectable on screen either way */
+    }
+  }
+
+  /** docs/22-lessons.md §6 — messages keyed by the Substrate custom error code. */
+  function errorMessage(err: unknown): string {
+    const raw = err instanceof Error ? err.message : String(err);
+    const code = /Custom error:?\s*(\d+)/i.exec(raw)?.[1];
+    switch (code) {
+      case "170":
+        return "Your wallet is still syncing. Try again in a few minutes.";
+      case "173":
+        return "Not enough DUST to cover the fee.";
+      case "174":
+        return "Something went wrong building the transaction — this has been logged.";
+      default:
+        return raw;
+    }
+  }
+
+  async function publishClaim(claimIndex: number) {
+    if (!student || !proof) return;
+    setPublish((p) => ({ ...p, [claimIndex]: { stage: "connecting" } }));
+    try {
+      // Publishing needs the real WalletConnectedAPI (balanceUnsealedTransaction,
+      // submitTransaction) — a demo wallet has none, and if the page was
+      // reloaded since connecting, the context has forgotten it too (it is
+      // not persisted — see lib/wallet-context.tsx). Either way, connect for
+      // real here rather than silently doing without.
+      let api = wallet?.api;
+      if (!api) {
+        const wallets = installedWallets();
+        if (wallets.length === 0) {
+          throw new Error("No Midnight wallet extension found. Install Lace to publish on chain.");
+        }
+        const connection = await connectWallet();
+        setWallet(connection);
+        api = connection.api;
+        if (!api) throw new Error("Connected, but no signing API was returned.");
+      }
+
+      setPublish((p) => ({ ...p, [claimIndex]: { stage: "building" } }));
+      const { MidnightProofProvider } = await import("@/lib/proof/midnight-provider");
+      const provider = new MidnightProofProvider();
+
+      setPublish((p) => ({ ...p, [claimIndex]: { stage: "waiting-wallet" } }));
+      const result = await provider.publishProof(student, proof, claimIndex, api);
+
+      setPublish((p) => ({ ...p, [claimIndex]: { stage: "done", txId: result.txId } }));
+    } catch (err) {
+      setPublish((p) => ({ ...p, [claimIndex]: { stage: "error", message: errorMessage(err) } }));
     }
   }
 
@@ -110,6 +179,57 @@ export default function IssuedProofPage({
           ))}
         </div>
       </section>
+
+      {providerName() === "midnight" && (
+        <section>
+          <h2 className="eyebrow rule pb-2">Publish on chain</h2>
+          <p className="pt-4 text-sm leading-relaxed text-ink-soft">
+            The check above ran locally, at no cost. Publishing runs the same circuit
+            again as a real transaction, signed by your wallet — it costs DUST and
+            takes a block or two.
+          </p>
+          <div className="rows mt-2">
+            {proof.claims.map((c, i) => {
+              const state = publish[i] ?? { stage: "idle" as const };
+              return (
+                <div key={c.statement} className="flex items-center justify-between gap-4 py-3">
+                  <span className="text-[15px] leading-snug text-ink">{c.label}</span>
+                  {state.stage === "idle" || state.stage === "error" ? (
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <button
+                        onClick={() => publishClaim(i)}
+                        className="focusable border border-rule px-4 py-2 text-xs text-ink transition-colors hover:border-ink-faint"
+                      >
+                        Publish on chain
+                      </button>
+                      {state.stage === "error" && (
+                        <span role="alert" className="max-w-xs text-right text-xs text-failed">
+                          {state.message}
+                        </span>
+                      )}
+                    </div>
+                  ) : state.stage === "done" ? (
+                    <a
+                      href={explorerTxUrl(state.txId)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="focusable shrink-0 text-xs uppercase tracking-wider text-proven underline decoration-rule underline-offset-4"
+                    >
+                      Published — view transaction
+                    </a>
+                  ) : (
+                    <span className="working shrink-0 border border-rule px-4 py-2 text-xs text-ink-soft">
+                      {state.stage === "connecting" && "Connecting to your wallet…"}
+                      {state.stage === "building" && "Building transaction…"}
+                      {state.stage === "waiting-wallet" && "Waiting for confirmation…"}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="eyebrow rule pb-2">Not disclosed</h2>

@@ -50,10 +50,31 @@ export function studentSecretKey(): bigint {
   return sk;
 }
 
+/** The circuit's public+private arguments for one predicate call. */
+export interface CircuitCallArgs {
+  schoolIdHash: bigint;
+  subject: bigint;
+  /** Uint<8> on the circuit side — bigint here, unlike Simulator.prove's `number`. */
+  slot: bigint;
+  op: bigint;
+  operand: bigint;
+  credential: bigint[];
+  signature: { announcement: import("@midnight-ntwrk/compact-runtime").JubjubPoint; response: bigint };
+}
+
 /** Everything needed to evaluate predicates against one student's credential. */
 export interface ProvingSession {
   subject: bigint;
   evaluate(slot: number, op: bigint, operand: bigint): Promise<boolean>;
+  /**
+   * The same arguments `evaluate` passes to the local Simulator, handed back
+   * for a caller that instead wants to run the circuit through a real
+   * transaction (callTx.proveCredentialPredicate) — see publishProof() in
+   * lib/proof/midnight-provider.ts. Not privacy-sensitive on its own:
+   * `credential`/`signature` are exactly what the circuit call already
+   * carries as private arguments; nothing here is written to `Proof`.
+   */
+  callArgs(slot: number, op: bigint, operand: bigint): CircuitCallArgs;
 }
 
 /**
@@ -100,5 +121,14 @@ export async function openProvingSession(student: Student): Promise<ProvingSessi
     subject,
     evaluate: (slot, op, operand) =>
       runner.prove({ schoolIdHash: idHash, subject, slot, op, operand, credential: vector, signature }),
+    callArgs: (slot, op, operand) => ({
+      schoolIdHash: idHash,
+      subject,
+      slot: BigInt(slot),
+      op,
+      operand,
+      credential: vector,
+      signature,
+    }),
   };
 }

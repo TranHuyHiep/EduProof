@@ -15,7 +15,8 @@
 // static import would add it to every page of the bundle rather than only the
 // one that generates proofs.
 
-import type { Proof, VerificationResult } from "@/types";
+import type { WalletConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
+import type { Proof, Student, VerificationResult } from "@/types";
 import { getSchool } from "@/lib/data";
 import { explorerContractUrl, explorerTxUrl, midnightConfig } from "@/lib/midnight/config";
 import { encodeOperand, operatorCode, schoolIdHash } from "@/lib/midnight/encoding";
@@ -80,6 +81,124 @@ export class MidnightProofProvider implements ProofProvider {
 
     await proofStore.save(proof);
     return proof;
+  }
+
+  /**
+   * Runs proveCredentialPredicate through a real transaction, signed and fee'd
+   * by the student's own connected wallet — the Wave 2 counterpart to
+   * generateProof()'s free local Simulator preview. Publishes one claim
+   * (`claimIndex` into `proof.claims`) per call, matching one circuit call per
+   * on-chain transaction.
+   *
+   * Does not touch proofStore or the Proof object: publishing is an action a
+   * student takes on an already-generated proof, not a new proof. The caller
+   * decides what a returned txId means for its own UI state.
+   */
+  async publishProof(
+    student: Student,
+    proof: Proof,
+    claimIndex: number,
+    walletApi: WalletConnectedAPI,
+  ): Promise<{ txId: string }> {
+    const claim = proof.claims[claimIndex];
+    if (!claim) throw new Error(`Proof ${proof.proofId} has no claim at index ${claimIndex}.`);
+    if (!midnightConfig.contractAddress) {
+      throw new Error("NEXT_PUBLIC_CONTRACT_ADDRESS is not set — nothing to publish to.");
+    }
+
+    const spec = attributeSpec(claim.attribute);
+
+    const [{ openProvingSession }, runtime, contractsSdk] = await Promise.all([
+      import("@/lib/midnight/prover"),
+      import("@midnight-ntwrk/compact-runtime"),
+      import("@midnight-ntwrk/midnight-js-contracts"),
+    ]);
+    const { findDeployedContract } = contractsSdk;
+
+    const session = await openProvingSession(student);
+    const args = session.callArgs(
+      spec.slot,
+      operatorCode(claim.operator),
+      encodeOperand(spec.slot, claim.operand),
+    );
+
+    const [{ laceWalletProvider }, { browserPublicDataProvider }, { inMemoryPrivateStateProvider }, { BrowserZkConfigProvider }] =
+      await Promise.all([
+        import("@/lib/midnight/lace-provider"),
+        import("@/lib/midnight/browser-providers"),
+        import("@/lib/midnight/browser-private-state"),
+        import("@/lib/midnight/browser-zk-config"),
+      ]);
+    const { httpClientProofProvider } = await import(
+      "@midnight-ntwrk/midnight-js-http-client-proof-provider"
+    );
+
+    const wallet = await laceWalletProvider(walletApi);
+    // Untyped as `string`: the compiled contract's real circuit-id union is
+    // only known once contractModule loads below (dynamic import), so this
+    // can't be threaded through as a type parameter here. Same shape
+    // scripts/register-issuer.mjs uses; that file just isn't typechecked.
+    const zkConfigProvider: import("@/lib/midnight/browser-zk-config").BrowserZkConfigProvider<string> =
+      new BrowserZkConfigProvider();
+
+    const PRIVATE_STATE_ID = "eduproof-publish";
+    const providers = {
+      publicDataProvider: browserPublicDataProvider(),
+      proofProvider: httpClientProofProvider(midnightConfig.proofServer, zkConfigProvider),
+      zkConfigProvider,
+      privateStateProvider: inMemoryPrivateStateProvider(PRIVATE_STATE_ID, { studentSk: 0n }),
+      walletProvider: wallet,
+      midnightProvider: wallet,
+    };
+
+    // Same compiled-contract + witness setup as scripts/register-issuer.mjs —
+    // the witnesses are part of the whole contract, not per-circuit.
+    const CompiledContract = await import("@midnight-ntwrk/compact-js/effect/CompiledContract");
+    const contractModule = await import("@/contracts/build/eduproof/contract/index.js");
+    const compiledContract = CompiledContract.make("eduproof", contractModule.Contract).pipe(
+      CompiledContract.withWitnesses({
+        studentSecretKey: (ctx: { privateState: { studentSk: bigint } }) => [
+          ctx.privateState,
+          ctx.privateState.studentSk,
+        ],
+        getSchnorrReduction: (ctx: { privateState: { studentSk: bigint } }, challengeHash: bigint) => [
+          ctx.privateState,
+          [challengeHash / (1n << 248n), challengeHash % (1n << 248n)],
+        ],
+      }),
+      CompiledContract.withCompiledFileAssets("contracts/build/eduproof"),
+    );
+
+    // `providers` is cast here for the same reason zkConfigProvider is typed
+    // `<string>` above: the compiled contract's circuit-id union only exists
+    // once `contractModule` (a dynamic import, typed as `any`) resolves —
+    // there is no static `C` for TS to check `providers` against. The
+    // runtime shape matches what findDeployedContract needs regardless;
+    // scripts/register-issuer.mjs passes the same providers unchecked
+    // because .mjs has no static types at all.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const found = await findDeployedContract(providers as any, {
+      compiledContract,
+      contractAddress: midnightConfig.contractAddress,
+      privateStateId: PRIVATE_STATE_ID,
+      initialPrivateState: { studentSk: 0n },
+    });
+
+    const result = await found.callTx.proveCredentialPredicate(
+      args.schoolIdHash,
+      args.subject,
+      args.slot,
+      args.op,
+      args.operand,
+      args.credential,
+      args.signature,
+    );
+
+    const status = result.public?.status;
+    if (status !== "SucceedEntirely") {
+      throw new Error(`Transaction did not succeed — status ${status ?? "unknown"}.`);
+    }
+    return { txId: result.public.txId };
   }
 
   async verifyProof(proofId: string): Promise<VerificationResult> {
