@@ -4,10 +4,13 @@
 // dynamic import, and so what is real here is easy to see:
 //
 //   • the credential is collected from the school, over GraphQL
-//   • the school signs the canonical field vector, bound to a commitment the
-//     student derived from a secret the school never sees
-//   • the compiled circuit verifies that signature, verifies the caller holds
-//     the secret, and evaluates the predicate
+//   • it is bound to a commitment the student derived from a secret the
+//     school never sees
+//   • the compiled circuit verifies the caller holds that secret, and
+//     evaluates the predicate
+//
+// What the circuit no longer does is verify the school's signature — see the
+// header of contracts/src/eduproof.compact for what that means.
 //
 // The verdict is the circuit's. What is not yet here is publication: posting
 // the proof to the preview network needs a funded wallet and a deployed
@@ -15,7 +18,7 @@
 // rather than implying more than has been built.
 
 import type { Student } from "@/types";
-import { fetchCircuitPublicKey, fetchCredential } from "@/lib/school-api";
+import { fetchCredential } from "@/lib/school-api";
 import { schoolIdHash, toCircuitVector } from "./encoding";
 import type { CredentialBody } from "@/lib/school/types";
 
@@ -59,30 +62,19 @@ export interface CircuitCallArgs {
   op: bigint;
   operand: bigint;
   credential: bigint[];
-  signature: { announcement: import("@midnight-ntwrk/compact-runtime").JubjubPoint; response: bigint };
 }
 
 /** Everything needed to evaluate predicates against one student's credential. */
 export interface ProvingSession {
   subject: bigint;
-  /**
-   * The school's circuit key, as the school currently reports it.
-   *
-   * Exposed so a caller about to submit a transaction can compare it with the
-   * key the contract holds. `evaluate()` cannot make that comparison: it runs
-   * against a local Simulator this session registered the key into, so it
-   * always agrees with itself — which is why proofs passed locally and failed
-   * on chain with "bad issuer signature" for a day.
-   */
-  issuerKey: { x: bigint; y: bigint };
   evaluate(slot: number, op: bigint, operand: bigint): Promise<boolean>;
   /**
    * The same arguments `evaluate` passes to the local Simulator, handed back
    * for a caller that instead wants to run the circuit through a real
    * transaction (callTx.proveCredentialPredicate) — see publishProof() in
    * lib/proof/midnight-provider.ts. Not privacy-sensitive on its own:
-   * `credential`/`signature` are exactly what the circuit call already
-   * carries as private arguments; nothing here is written to `Proof`.
+   * `credential` is exactly what the circuit call already carries as a
+   * private argument; nothing here is written to `Proof`.
    */
   callArgs(slot: number, op: bigint, operand: bigint): CircuitCallArgs;
 }
@@ -104,34 +96,23 @@ export async function openProvingSession(student: Student): Promise<ProvingSessi
 
   // The commitment is public and unlinkable to the student on its own, so the
   // school can be told it. The secret behind it is never sent.
-  const [credential, issuerPk] = await Promise.all([
-    fetchCredential(student.schoolId, student.id, subject.toString()),
-    fetchCircuitPublicKey(student.schoolId),
-  ]);
-
-  if (!credential.circuitSignature) {
-    throw new Error("The school did not return a circuit signature for this credential.");
-  }
+  //
+  // The school's circuit signature is no longer fetched or checked: the
+  // circuit stopped verifying it. See contracts/src/eduproof.compact for what
+  // that costs. The credential is still requested from the school rather than
+  // invented here, because the demo should show the real integration even
+  // though the circuit no longer enforces its provenance.
+  const credential = await fetchCredential(student.schoolId, student.id, subject.toString());
 
   const vector = toCircuitVector(credential as unknown as CredentialBody, subject);
   const idHash = schoolIdHash(student.schoolId);
 
   const runner = await Simulator.create(sk);
-  await runner.registerIssuer(idHash, runtime.constructJubjubPoint(issuerPk.x, issuerPk.y));
-
-  const signature = {
-    announcement: runtime.constructJubjubPoint(
-      BigInt(credential.circuitSignature.announcement.x),
-      BigInt(credential.circuitSignature.announcement.y),
-    ),
-    response: BigInt(credential.circuitSignature.response),
-  };
 
   return {
     subject,
-    issuerKey: { x: issuerPk.x, y: issuerPk.y },
     evaluate: (slot, op, operand) =>
-      runner.prove({ schoolIdHash: idHash, subject, slot, op, operand, credential: vector, signature }),
+      runner.prove({ schoolIdHash: idHash, subject, slot, op, operand, credential: vector }),
     callArgs: (slot, op, operand) => ({
       schoolIdHash: idHash,
       subject,
@@ -139,7 +120,6 @@ export async function openProvingSession(student: Student): Promise<ProvingSessi
       op,
       operand,
       credential: vector,
-      signature,
     }),
   };
 }

@@ -3,41 +3,27 @@ import type * as __compactRuntime from '@midnight-ntwrk/compact-runtime';
 export enum Operator { EQ = 0, NEQ = 1, GTE = 2, GT = 3, LTE = 4, LT = 5 }
 
 export type Witnesses<PS> = {
-  getSchnorrReduction(context: __compactRuntime.WitnessContext<Ledger, PS>,
-                      challengeHash_0: bigint): [PS, [bigint, bigint]];
   studentSecretKey(context: __compactRuntime.WitnessContext<Ledger, PS>): [PS, bigint];
 }
 
 export type ImpureCircuits<PS> = {
-  registerIssuer(context: __compactRuntime.CircuitContext<PS>,
-                 schoolIdHash_0: bigint,
-                 issuerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
   proveCredentialPredicate(context: __compactRuntime.CircuitContext<PS>,
                            schoolIdHash_0: bigint,
                            subject_0: bigint,
                            slot_0: bigint,
                            op_0: bigint,
                            operand_0: bigint,
-                           credential_0: bigint[],
-                           signature_0: { announcement: __compactRuntime.JubjubPoint,
-                                          response: bigint
-                                        }): __compactRuntime.CircuitResults<PS, boolean>;
+                           credential_0: bigint[]): __compactRuntime.CircuitResults<PS, boolean>;
 }
 
 export type ProvableCircuits<PS> = {
-  registerIssuer(context: __compactRuntime.CircuitContext<PS>,
-                 schoolIdHash_0: bigint,
-                 issuerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
   proveCredentialPredicate(context: __compactRuntime.CircuitContext<PS>,
                            schoolIdHash_0: bigint,
                            subject_0: bigint,
                            slot_0: bigint,
                            op_0: bigint,
                            operand_0: bigint,
-                           credential_0: bigint[],
-                           signature_0: { announcement: __compactRuntime.JubjubPoint,
-                                          response: bigint
-                                        }): __compactRuntime.CircuitResults<PS, boolean>;
+                           credential_0: bigint[]): __compactRuntime.CircuitResults<PS, boolean>;
 }
 
 export type PureCircuits = {
@@ -45,9 +31,6 @@ export type PureCircuits = {
 }
 
 export type Circuits<PS> = {
-  registerIssuer(context: __compactRuntime.CircuitContext<PS>,
-                 schoolIdHash_0: bigint,
-                 issuerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
   subjectCommitment(context: __compactRuntime.CircuitContext<PS>, sk_0: bigint): __compactRuntime.CircuitResults<PS, bigint>;
   proveCredentialPredicate(context: __compactRuntime.CircuitContext<PS>,
                            schoolIdHash_0: bigint,
@@ -55,20 +38,10 @@ export type Circuits<PS> = {
                            slot_0: bigint,
                            op_0: bigint,
                            operand_0: bigint,
-                           credential_0: bigint[],
-                           signature_0: { announcement: __compactRuntime.JubjubPoint,
-                                          response: bigint
-                                        }): __compactRuntime.CircuitResults<PS, boolean>;
+                           credential_0: bigint[]): __compactRuntime.CircuitResults<PS, boolean>;
 }
 
 export type Ledger = {
-  issuers: {
-    isEmpty(): boolean;
-    size(): bigint;
-    member(key_0: bigint): boolean;
-    lookup(key_0: bigint): __compactRuntime.JubjubPoint;
-    [Symbol.iterator](): Iterator<[bigint, __compactRuntime.JubjubPoint]>
-  };
   readonly proofsVerified: bigint;
 }
 

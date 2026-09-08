@@ -130,35 +130,6 @@ export class MidnightProofProvider implements ProofProvider {
 
     const session = await openProvingSession(student);
 
-    // The contract must hold the key this school signs with — not merely SOME
-    // key for it.
-    //
-    // `session.evaluate()` cannot answer this: it runs against a local
-    // Simulator that this session just registered the key into, so it always
-    // agrees with itself. The chain is the only place the two can disagree,
-    // and they did: changing SCHOOL_SIGNING_KEY after registering left the
-    // registry holding a stale key, and every publish failed with "failed
-    // assert: bad issuer signature" — after the wallet had been signed and
-    // the fee paid. Checked here, before anything is built or signed.
-    const { issuerRegistered, issuerVerdict } = await import("@/lib/midnight/chain");
-    const onChain = await issuerRegistered(schoolIdHash(student.schoolId));
-
-    // A stale or missing key is repaired here rather than reported.
-    //
-    // Reporting it was the old behaviour, and it left the student holding an
-    // error they could do nothing about: registering an issuer needs a wallet
-    // and a chain write, which is exactly what this function already has open.
-    // The equivalent script cannot do it — its headless wallet syncs from
-    // genesis for hours and then dies inside balanceTx — so the browser is the
-    // only path that reaches the chain at all.
-    //
-    // `registerIssuer` uses `issuers.insert()`, an upsert: registering a school
-    // that is already registered replaces its key in place rather than adding a
-    // second entry (verified against the simulator in
-    // contracts/tests/real-issuer.test.ts before any DUST was spent on it).
-    const verdict = issuerVerdict(onChain, session.issuerKey);
-    const needsRegistering = verdict === "mismatch" || verdict === "not-registered";
-
     const args = session.callArgs(
       spec.slot,
       operatorCode(claim.operator),
@@ -227,29 +198,6 @@ export class MidnightProofProvider implements ProofProvider {
       initialPrivateState: { studentSk: 0n },
     });
 
-    // Repair the registry first, through the same contract handle.
-    //
-    // Two transactions rather than one, and only when the chain disagrees with
-    // the school — the common case costs nothing. Doing it here rather than in
-    // a separate flow keeps the wiring single: one `findDeployedContract`, one
-    // wallet session, one place where a circuit is called.
-    if (needsRegistering) {
-      const registration = await found.callTx.registerIssuer(
-        args.schoolIdHash,
-        runtime.constructJubjubPoint(session.issuerKey.x, session.issuerKey.y),
-      );
-
-      // A transaction can reach a block and still have failed. Carrying on
-      // after that would produce the "bad issuer signature" this exists to
-      // prevent, having now paid twice.
-      if (registration.public?.status !== "SucceedEntirely") {
-        throw new Error(
-          `Registering ${proof.issuer.schoolName}'s key on chain did not succeed — ` +
-            `status ${registration.public?.status ?? "unknown"}. The proof was not published.`,
-        );
-      }
-    }
-
     // proveCredentialPredicate awaits the whole chain — prove, balance,
     // submit, then watchForTxData, whose interface contract is to wait
     // indefinitely. Nothing below it ever gives up on a transaction the
@@ -271,7 +219,6 @@ export class MidnightProofProvider implements ProofProvider {
         args.op,
         args.operand,
         args.credential,
-        args.signature,
       ),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
@@ -313,17 +260,17 @@ export class MidnightProofProvider implements ProofProvider {
       };
     }
 
-    // Ask the chain rather than assert. The registry the circuit checks
-    // against lives on the contract, so a verifier can confirm the issuer
-    // without trusting this app's own school list — which is the whole point
-    // of putting it on chain.
-    const { chainState, issuerRegistered } = await import("@/lib/midnight/chain");
-    const { schoolIdHash } = await import("@/lib/midnight/encoding");
+    // Ask the chain rather than assert: the verification counter lives on the
+    // contract, so a verifier can see the contract is genuinely in use without
+    // trusting this app's own word for it.
+    //
+    // There is no issuer question to ask any more. The circuit stopped
+    // verifying signatures, so the contract holds no issuer registry — and
+    // reporting "issuer registered" from a registry nothing checks would be
+    // exactly the meaningless green tick lib/issuer-badge.ts exists to avoid.
+    const { chainState } = await import("@/lib/midnight/chain");
 
-    const [state, issuer] = await Promise.all([
-      chainState(),
-      issuerRegistered(schoolIdHash(proof.issuer.schoolId)),
-    ]);
+    const state = await chainState();
 
     // A proof stands on the circuit's verdict. The chain being unreachable
     // makes the on-chain half unknown, not the proof invalid.
@@ -333,8 +280,6 @@ export class MidnightProofProvider implements ProofProvider {
       onChain: state.available
         ? {
             available: true,
-            issuerRegistered: issuer.registered,
-            issuerCount: state.issuerCount,
             proofsVerified: state.proofsVerified?.toString(),
             explorerUrl: explorerContractUrl() ?? undefined,
             explorerTxUrl: state.txHash ? explorerTxUrl(state.txHash) : undefined,

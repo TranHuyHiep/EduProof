@@ -17,13 +17,11 @@ const SCHOOL_ID = "vnu-hcm";
 
 vi.mock("@/lib/midnight/chain", () => ({
   chainState: vi.fn(),
-  issuerRegistered: vi.fn(),
 }));
 
 async function verifyWith(
   chain: {
     state: Record<string, unknown>;
-    issuer: Record<string, unknown>;
   },
   // Overridable so a caller can verify two *different* proofs. Left fixed, the
   // linkability test below silently passed a link carrying the proof id.
@@ -31,7 +29,6 @@ async function verifyWith(
 ) {
   const chainModule = await import("@/lib/midnight/chain");
   vi.mocked(chainModule.chainState).mockResolvedValue(chain.state as never);
-  vi.mocked(chainModule.issuerRegistered).mockResolvedValue(chain.issuer as never);
 
   const { proofStore } = await import("@/lib/proof/store");
   const { MidnightProofProvider } = await import("@/lib/proof/midnight-provider");
@@ -40,7 +37,6 @@ async function verifyWith(
     proofId,
     version: "1",
     provider: "midnight",
-    issuer: { schoolId: SCHOOL_ID, schoolName: "X", keyId: "k1", verified: true },
     subject: "sub_abcdef0123456789",
     owner: "addr_test",
     claims: [
@@ -73,20 +69,16 @@ describe("the on-chain half of a verification", () => {
   it("reports what the ledger says when the chain answers", async () => {
     const result = await verifyWith({
       state: { available: true, issuerCount: 3, proofsVerified: 42n },
-      issuer: { available: true, registered: true },
     });
 
     expect(result.valid).toBe(true);
     expect(result.onChain?.available).toBe(true);
-    expect(result.onChain?.issuerRegistered).toBe(true);
     expect(result.onChain?.proofsVerified).toBe("42");
-    expect(result.onChain?.issuerCount).toBe(3);
   });
 
   it("carries no student values, in any field", async () => {
     const result = await verifyWith({
       state: { available: true, issuerCount: 3, proofsVerified: 42n },
-      issuer: { available: true, registered: true },
     });
 
     // Everything the on-chain block says, flattened. A GPA, a name, or a
@@ -102,7 +94,6 @@ describe("the on-chain half of a verification", () => {
   it("stays valid, and says why, when the chain cannot be reached", async () => {
     const result = await verifyWith({
       state: { available: false, reason: "indexer unreachable" },
-      issuer: { available: false, reason: "indexer unreachable" },
     });
 
     // The circuit's verdict does not depend on an indexer being up.
@@ -110,13 +101,11 @@ describe("the on-chain half of a verification", () => {
     expect(result.onChain?.available).toBe(false);
     expect(result.onChain?.reason).toBe("indexer unreachable");
     // No tick that stands for nothing.
-    expect(result.onChain?.issuerRegistered).toBeUndefined();
   });
 
   it("exposes only aggregate counters, never a per-proof record", async () => {
     const result = await verifyWith({
       state: { available: true, issuerCount: 3, proofsVerified: 42n },
-      issuer: { available: true, registered: true },
     });
 
     // If a future change adds a per-proof lookup — an index, a nullifier, a
@@ -133,8 +122,6 @@ describe("the on-chain half of a verification", () => {
         "available",
         "explorerTxUrl",
         "explorerUrl",
-        "issuerCount",
-        "issuerRegistered",
         "proofsVerified",
       ].sort(),
     );
@@ -146,7 +133,6 @@ describe("the on-chain half of a verification", () => {
     // share a mocked module, so overlapping them would test the mock instead.
     const chain = {
       state: { available: true, issuerCount: 3, proofsVerified: 42n, txHash: "a".repeat(64) },
-      issuer: { available: true, registered: true },
     };
     const first = await verifyWith(chain, "pf_aaaaaaaaaaaa");
     const second = await verifyWith(chain, "pf_bbbbbbbbbbbb");
@@ -158,7 +144,6 @@ describe("the on-chain half of a verification", () => {
   it("omits the transaction link rather than inventing one when the indexer gives no hash", async () => {
     const result = await verifyWith({
       state: { available: true, issuerCount: 3, proofsVerified: 42n },
-      issuer: { available: true, registered: true },
     });
 
     expect(result.onChain?.explorerTxUrl).toBeUndefined();

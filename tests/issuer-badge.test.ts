@@ -4,33 +4,46 @@ import { issuerBadge } from "@/lib/issuer-badge";
 /**
  * Which authority the issuer badge speaks for.
  *
- * The failing case is the point: data/schools.json carries a hand-written
- * `verified: true`, and the chain is the only party that can contradict it.
- * If a chain "not registered" ever fell through to the app's own green tick,
- * the page would vouch for an issuer the contract does not know.
+ * It used to arbitrate between two: the app's hand-written `verified: true`
+ * in data/schools.json, and the contract's on-chain issuer registry. The
+ * registry is gone — the circuit no longer verifies a school's signature, so
+ * the chain has no opinion about who issued anything.
+ *
+ * That makes this function's job narrower and more important: there is now
+ * only the app's own claim, and it must never be dressed up as more. These
+ * tests exist to stop a green "proven" badge coming back without the
+ * signature check that would justify it.
  */
 describe("issuer badge authority", () => {
-  it("prefers the chain when the chain has an answer", () => {
-    expect(issuerBadge({ available: true, issuerRegistered: true }, true)).toEqual({
-      label: "Registered on chain",
-      tone: "proven",
-    });
+  it("never claims the chain vouches for an issuer, because it cannot", () => {
+    // Even with the chain reachable and reporting a healthy contract, there
+    // is no issuer registry to consult. A "Registered on chain" badge here
+    // would be describing a check that does not happen.
+    const badge = issuerBadge({ available: true, proofsVerified: "42" }, true);
+    expect(badge).toEqual({ label: "Listed by this app", tone: "neutral" });
   });
 
-  it("never shows a green badge when the chain says the issuer is absent", () => {
-    const badge = issuerBadge({ available: true, issuerRegistered: false }, true);
-    expect(badge?.tone).toBe("failed");
-    expect(badge?.label).toBe("Not on the chain registry");
+  it("never returns a proven tone, whatever the chain says", () => {
+    // The strongest statement in the codebase about what was lost. If issuer
+    // authenticity is restored, this test should fail and be rewritten —
+    // that is the point of it.
+    for (const onChain of [
+      { available: true, proofsVerified: "42" },
+      { available: false, reason: "unreachable" },
+      undefined,
+    ]) {
+      expect(issuerBadge(onChain, true)?.tone).not.toBe("proven");
+    }
   });
 
-  it("falls back to the app's own list, labelled as the app's own claim", () => {
+  it("labels the app's own list as the app's own claim", () => {
     expect(issuerBadge({ available: false }, true)).toEqual({
       label: "Listed by this app",
       tone: "neutral",
     });
   });
 
-  it("shows nothing when neither the chain nor the app vouches", () => {
+  it("shows nothing when the app does not vouch either", () => {
     expect(issuerBadge({ available: false }, false)).toBeNull();
   });
 

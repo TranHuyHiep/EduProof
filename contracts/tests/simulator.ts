@@ -2,34 +2,27 @@
 //
 // The circuit is the part of EduProof that cannot be tested by clicking
 // through the UI: it either constrains what it claims to constrain, or it
-// quietly proves nothing. So this file builds the whole setting — a school
-// with a signing key, a student with a secret, a signed credential — and lets
-// a test drive circuits against it.
+// quietly proves nothing. So this file builds the whole setting — a student
+// with a secret, a credential bound to them — and lets a test drive circuits
+// against it.
 //
 // Proofs are not generated here. `--skip-zk` style execution runs the circuit
 // logic and its assertions, which is what the tests are about; producing an
 // actual proof would add minutes per case and test the prover, not us.
+//
+// There is no `School` here any more. The circuit no longer verifies an
+// issuer signature, so there is nothing for a school to do that a test can
+// observe — see the header of contracts/src/eduproof.compact.
 
 import {
   CompactTypeField,
   CompactTypeVector,
-  constructJubjubPoint,
   createCircuitContext,
   createConstructorContext,
   dummyContractAddress,
   transientHash,
   type CircuitContext,
-  type JubjubPoint,
 } from "@midnight-ntwrk/compact-runtime";
-
-import {
-  JUBJUB_SCALAR_ORDER,
-  fullChallenge,
-  publicKeyOf,
-  reduction,
-  sign as schnorrSign,
-  type SchnorrSignature,
-} from "../../lib/midnight/schnorr.ts";
 
 import {
   Contract,
@@ -37,7 +30,7 @@ import {
   type Ledger,
 } from "../build/eduproof/contract/index.js";
 
-/** The message type the issuer signs: the whole sixteen-slot vector. */
+/** The credential's type: the whole sixteen-slot vector. */
 export const CREDENTIAL_TYPE = new CompactTypeVector(16, CompactTypeField);
 
 /** What the wallet keeps to itself. The witness reads this and nothing else. */
@@ -46,45 +39,6 @@ export interface StudentPrivateState {
 }
 
 const COIN_PUBLIC_KEY = "0".repeat(64);
-
-/**
- * A school that can issue credentials.
- *
- * In production this key lives in the registrar's HSM and the public half goes
- * on chain. Here it is a scalar, sampled per test run so no fixture can
- * accidentally depend on a fixed key.
- */
-export class School {
-  readonly sk: bigint;
-  readonly pk: JubjubPoint;
-  /** The public key as plain coordinates — what the challenge hash reads. */
-  readonly pkCoords: { x: bigint; y: bigint };
-
-  private constructor(sk: bigint, pkCoords: { x: bigint; y: bigint }) {
-    this.sk = sk;
-    this.pkCoords = pkCoords;
-    this.pk = constructJubjubPoint(pkCoords.x, pkCoords.y);
-  }
-
-  /**
-   * Sampled per test run, so no fixture can come to depend on a fixed key.
-   *
-   * Async because the Schnorr helpers are: they load the runtime lazily so the
-   * WASM is not pulled in by modules that never sign anything.
-   */
-  static async create(): Promise<School> {
-    const bytes = new Uint8Array(64);
-    crypto.getRandomValues(bytes);
-    let value = 0n;
-    for (const byte of bytes) value = (value << 8n) | BigInt(byte);
-    const sk = (value % (JUBJUB_SCALAR_ORDER - 1n)) + 1n;
-    return new School(sk, await publicKeyOf(sk));
-  }
-
-  sign(credential: bigint[]): Promise<SchnorrSignature> {
-    return schnorrSign(credential, this.sk);
-  }
-}
 
 /** The commitment a student publishes in place of an identity. */
 export function subjectCommitment(studentSk: bigint): bigint {
@@ -117,15 +71,6 @@ export class Simulator {
       // proving time. It never appears in a circuit argument, so no code that
       // builds a transaction ever holds it.
       studentSecretKey: (context) => [context.privateState, context.privateState.studentSk],
-
-      // The circuit hashes the challenge itself, then asks the prover to split
-      // it — division is expensive in a circuit, checking a division is cheap.
-      // The circuit verifies q·2^248 + rest == challengeHash with q < 116, so
-      // supplying a wrong split fails there rather than proving anything.
-      getSchnorrReduction: (context, challengeHash) => [
-        context.privateState,
-        reduction(challengeHash),
-      ],
     });
     const state = await contract.initialState(
       createConstructorContext(privateState, COIN_PUBLIC_KEY),
@@ -157,7 +102,7 @@ export class Simulator {
 
   /**
    * Carries the ledger and private state forward, so a later circuit call sees
-   * what an earlier one wrote — registerIssuer before a proof, for instance.
+   * what an earlier one wrote — the proof counter, for instance.
    *
    * `currentContractState` is a WASM-backed object, so its `data` is assigned
    * rather than the object being rebuilt: a spread would produce a plain
@@ -171,15 +116,6 @@ export class Simulator {
     }
   }
 
-  async registerIssuer(schoolIdHash: bigint, issuerPk: JubjubPoint): Promise<void> {
-    const result = await this.contract.impureCircuits.registerIssuer(
-      this.context(),
-      schoolIdHash,
-      issuerPk,
-    );
-    this.commit(result);
-  }
-
   async proveCredentialPredicate(args: {
     schoolIdHash: bigint;
     subject: bigint;
@@ -187,7 +123,6 @@ export class Simulator {
     op: number | bigint;
     operand: bigint;
     credential: bigint[];
-    signature: SchnorrSignature;
   }): Promise<boolean> {
     const result = await this.contract.impureCircuits.proveCredentialPredicate(
       this.context(),
@@ -197,13 +132,6 @@ export class Simulator {
       BigInt(args.op),
       args.operand,
       args.credential,
-      {
-        announcement: constructJubjubPoint(
-          args.signature.announcement.x,
-          args.signature.announcement.y,
-        ),
-        response: args.signature.response,
-      },
     );
     this.commit(result);
     return result.result;

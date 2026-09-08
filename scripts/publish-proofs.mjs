@@ -16,12 +16,12 @@
 // would still be ten catch-ups. So the wallet is opened ONCE and the loop
 // runs inside it.
 //
-// Why the credential is issued here rather than fetched from the school API.
-// The signature has to be made with the key the contract holds, and
-// lib/school/keys.ts is where that key comes from — the same import
-// register-issuer.mjs uses. Going through HTTP would add a running server to
-// the list of things that can be wrong, and would not make the signature any
-// more real: it is the same function either way.
+// Why the credential is built here rather than fetched from the school API.
+// Going through HTTP would add a running server to the list of things that
+// can be wrong without making the call any more real — the circuit no longer
+// verifies who issued the credential, so the school's involvement is not
+// something this script can demonstrate either way. See the header of
+// contracts/src/eduproof.compact.
 //
 // This writes to a public chain and cannot be undone, so it asks first.
 
@@ -132,22 +132,9 @@ async function main() {
     );
   }
 
-  // Same reasoning as register-issuer.mjs: without the school's real key this
-  // would sign with an ephemeral one, and every call would fail on chain with
-  // "bad issuer signature" after paying the fee.
-  if (!process.env.SCHOOL_SIGNING_KEY) {
-    fail(
-      "SCHOOL_SIGNING_KEY is not set.\n" +
-        "  The credential must be signed with the key the contract holds.\n" +
-        "  Without it every call would fail on chain, having paid the fee.",
-    );
-  }
-
   // Reached through the .ts modules directly rather than through the `@/`
   // alias, which Next resolves and plain Node does not.
   const { hashToField } = await import("../lib/school/circuit-vector.ts");
-  const { circuitPublicKey } = await import("../lib/school/keys.ts");
-  const { signForCircuit } = await import("../lib/school/credential.ts");
   const { SLOT, STATUS_CODE, DEGREE_CODE } = await import("../lib/school/canonical.ts");
   // The operator codes come from the COMPILED contract's own enum, not from
   // lib/midnight/encoding.ts. Two reasons: that module imports through the
@@ -167,7 +154,6 @@ async function main() {
 
   const school = JSON.parse(readFileSync("data/schools.json", "utf8")).schools[0];
   const schoolIdHash = hashToField(school.id);
-  const issuerPk = await circuitPublicKey(school.id);
 
   // The subject commitment, derived the way the circuit derives it. The
   // school never sees the secret behind it; it only signs the commitment.
@@ -180,41 +166,9 @@ async function main() {
   console.log("\nPublishing proofs on chain\n");
   console.log(`  contract   ${address}`);
   console.log(`  school     ${school.id} (${school.name})`);
-  console.log(`  key        x=${issuerPk.x.toString(16).slice(0, 16)}…`);
   console.log(`  calls      ${count}`);
 
-  // ── The issuer key must already be on chain, and must be THIS key ─────
-  //
-  // Checked before the wallet opens, because the wallet costs hours and this
-  // costs a second. A mismatch here is the "bad issuer signature" that cost a
-  // day: the registry held a key from before SCHOOL_SIGNING_KEY was changed,
-  // and nothing said so until a proof failed on chain, after paying.
-
   const { midnightConfig } = await import("../lib/midnight/config.ts");
-  process.stdout.write("\nchecking the on-chain issuer key … ");
-
-  const onChain = await readIssuerKey(midnightConfig.indexer, address, schoolIdHash, runtime);
-
-  if (!onChain) {
-    console.log("not registered");
-    fail(
-      `The contract holds no issuer key for ${school.id}.\n` +
-        "  Register it first:  npm run contract:register-issuer",
-    );
-  }
-
-  if (onChain.x !== issuerPk.x || onChain.y !== issuerPk.y) {
-    console.log("MISMATCH");
-    fail(
-      "The key on chain is not the key this school signs with.\n\n" +
-        `  on chain   x=${onChain.x}\n` +
-        `  signing    x=${issuerPk.x}\n\n` +
-        "  Every call would fail with 'bad issuer signature' after paying its\n" +
-        "  fee. This is what changing SCHOOL_SIGNING_KEY after registering\n" +
-        "  looks like. Re-register:  npm run contract:register-issuer",
-    );
-  }
-  console.log("matches");
 
   // ── Confirm. This is public, permanent, and costs DUST per call. ──────
 
@@ -285,7 +239,11 @@ async function main() {
 
   // ── The loop ──────────────────────────────────────────────────────────
 
-  const body = credentialBody(school);
+  // Built once: the circuit no longer verifies a signature, so there is
+  // nothing per-call to re-derive.
+  const { toCircuitVector } = await import("../lib/school/circuit-vector.ts");
+  const credentialVector = toCircuitVector(credentialBody(school), subject);
+
   const succeeded = [];
   const failed = [];
 
@@ -294,11 +252,6 @@ async function main() {
     console.log(`\n[${n}/${count}] ${predicate.label}`);
 
     try {
-      // Re-signed per call. A real publish signs per proof, and a fresh nonce
-      // gives a different challenge — and so a different reduction witness —
-      // every time. Reusing one signature would test less than it appears to.
-      const signed = await signForCircuit(body, subject);
-
       process.stdout.write("  proving and submitting — this takes minutes … ");
 
       const result = await found.callTx.proveCredentialPredicate(
@@ -307,14 +260,7 @@ async function main() {
         BigInt(predicate.slot),
         BigInt(predicate.op),
         predicate.operand,
-        signed.circuitVector.map(BigInt),
-        {
-          announcement: runtime.constructJubjubPoint(
-            BigInt(signed.circuitSignature.announcement.x),
-            BigInt(signed.circuitSignature.announcement.y),
-          ),
-          response: BigInt(signed.circuitSignature.response),
-        },
+        credentialVector,
       );
 
       // A transaction can reach a block and still have failed. `FailFallible`
@@ -391,17 +337,6 @@ export async function fetchLedger(indexer, address, runtime) {
   const { ledger } = await import(CONTRACT_MODULE);
   const state = runtime.ContractState.deserialize(Uint8Array.from(Buffer.from(hex, "hex")));
   return ledger(state.data);
-}
-
-export async function readIssuerKey(indexer, address, schoolIdHash, runtime) {
-  try {
-    const l = await fetchLedger(indexer, address, runtime);
-    if (!l?.issuers.member(schoolIdHash)) return null;
-    const pk = l.issuers.lookup(schoolIdHash);
-    return { x: pk.x, y: pk.y };
-  } catch {
-    return null;
-  }
 }
 
 export async function readProofsVerified(indexer, address, runtime) {

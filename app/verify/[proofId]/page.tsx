@@ -181,9 +181,13 @@ export default function VerifyProofPage({
 
         {/*
           What the chain itself says, read at verification time rather than
-          asserted. `issuerRegistered` is the one that carries weight: the
-          school's key is in the contract's registry, so the issuer does not
-          rest on this app's own school list.
+          asserted.
+
+          The issuer rows are gone with the issuer registry: the circuit no
+          longer verifies a school's signature, so the contract holds no keys
+          and the chain cannot speak to who issued this credential. Printing
+          "in the registry" from a registry nothing checks would be the
+          strongest-looking claim on the page and the emptiest.
 
           When the chain cannot be reached the block says so. A proof is the
           circuit's verdict and does not depend on an indexer being up, but a
@@ -195,14 +199,6 @@ export default function VerifyProofPage({
               <>
                 <h3 className="eyebrow pb-1">On the {NETWORK} chain</h3>
                 <dl className="rows pt-1">
-                  <Entry
-                    label="This proof's issuer"
-                    value={onChain.issuerRegistered ? "in the registry" : "not in the registry"}
-                  />
-                  <Entry
-                    label="Institutions in the registry"
-                    value={onChain.issuerCount ?? "—"}
-                  />
                   <Entry label="Contract" value={<ContractAddress />} mono />
                   <Entry label="Network" value={NETWORK} />
                 </dl>

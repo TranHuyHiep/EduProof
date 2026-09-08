@@ -149,18 +149,13 @@ export interface Proof {
  * What the deployed contract's public ledger says, at verification time.
  *
  * Deliberately only aggregates. Nothing here is per-student or per-proof:
- * `issuerRegistered` is about a school, and `proofsVerified` counts every
- * predicate the contract has ever checked. Putting anything narrower on chain
- * would let a verifier link proofs back to a person, which is the one thing
- * this product refuses.
+ * `proofsVerified` counts every predicate the contract has ever checked.
+ * Putting anything narrower on chain would let a verifier link proofs back to
+ * a person, which is the one thing this product refuses.
  */
 export interface OnChainState {
   /** False when no contract is configured or the indexer cannot be reached. */
   available: boolean;
-  /** Whether the chain's issuer registry holds this proof's school. */
-  issuerRegistered?: boolean;
-  /** Schools registered on the contract. */
-  issuerCount?: number;
   /** Predicates the contract has verified since deployment. */
   proofsVerified?: string;
   /** Where a human can check this themselves. */

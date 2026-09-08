@@ -1,10 +1,10 @@
 // Reading the deployed contract's ledger state.
 //
 // This is the half of the dual-ledger model that IS public. The circuit runs
-// against private witnesses on the student's device; the issuer registry and
-// the verification counter live on chain, and anyone can read them without a
-// wallet, a key, or permission. That asymmetry is the product, so the app
-// should show both halves rather than assert them.
+// against private witnesses on the student's device; the verification counter
+// lives on chain, and anyone can read it without a wallet, a key, or
+// permission. That asymmetry is the product, so the app should show both
+// halves rather than assert them.
 //
 // Read-only on purpose. Submitting a transaction costs DUST and takes a block,
 // which is the wrong trade for something a verifier does on page load. Writes
@@ -19,8 +19,6 @@ import { midnightConfig } from "./config.ts";
 /** What the ledger says, or why it could not be read. */
 export interface ChainState {
   available: boolean;
-  /** Schools registered on chain. */
-  issuerCount?: number;
   /** Predicates this contract has verified since deployment. */
   proofsVerified?: bigint;
   /**
@@ -31,49 +29,6 @@ export interface ChainState {
   txHash?: string;
   /** Set when `available` is false. */
   reason?: string;
-}
-
-/** Whether a given school's key is registered on the deployed contract. */
-export interface IssuerCheck {
-  available: boolean;
-  registered?: boolean;
-  reason?: string;
-  /**
-   * The key the contract actually holds, when one is registered.
-   *
-   * `registered` alone answers a weaker question than it appears to. The
-   * registry held a key for this school throughout the period when every
-   * proof failed on chain with "bad issuer signature" — it was simply a key
-   * from before SCHOOL_SIGNING_KEY was changed. Membership was true; the
-   * signature still did not verify. Callers that can obtain the school's
-   * current key should compare it against this.
-   */
-  key?: { x: bigint; y: bigint };
-}
-
-/**
- * Whether a publish may proceed, given what the chain holds and what the
- * school signs with.
- *
- * Extracted so the decision can be tested without a wallet, a proof server
- * and a chain — and so the browser path and any script share one rule rather
- * than two that can drift.
- *
- * An unreachable chain returns "proceed" deliberately: an indexer outage is
- * not evidence of a mismatch, and the transaction itself remains the
- * authority. A registered issuer whose key is absent proceeds for the same
- * reason — the reader is allowed not to report one.
- */
-export type IssuerVerdict = "proceed" | "not-registered" | "mismatch";
-
-export function issuerVerdict(
-  onChain: IssuerCheck,
-  signingKey: { x: bigint; y: bigint },
-): IssuerVerdict {
-  if (!onChain.available) return "proceed";
-  if (onChain.registered === false) return "not-registered";
-  if (onChain.key && onChain.key.x !== signingKey.x) return "mismatch";
-  return "proceed";
 }
 
 const NO_CONTRACT = "No contract address is configured.";
@@ -167,7 +122,6 @@ export async function chainState(): Promise<ChainState> {
 
     return {
       available: true,
-      issuerCount: Number(result.ledger.issuers.size()),
       proofsVerified: result.ledger.proofsVerified,
       txHash: result.txHash,
     };
@@ -176,26 +130,3 @@ export async function chainState(): Promise<ChainState> {
   }
 }
 
-/**
- * Whether the chain agrees this school may issue credentials.
- *
- * Wave 1 shipped the issuer list as a JSON file, which meant the app vouched
- * for itself. Asking the ledger is a different claim: the registration is
- * public, and a verifier can check it without trusting this deployment.
- */
-export async function issuerRegistered(schoolIdHash: bigint): Promise<IssuerCheck> {
-  try {
-    const result = await readLedger();
-    if ("error" in result) return { available: false, reason: result.error };
-
-    const registered = result.ledger.issuers.member(schoolIdHash);
-    if (!registered) return { available: true, registered: false };
-
-    // Returned alongside, so a caller can ask the stronger question: not "is
-    // some key registered" but "is it the key this school signs with".
-    const pk = result.ledger.issuers.lookup(schoolIdHash);
-    return { available: true, registered: true, key: { x: pk.x, y: pk.y } };
-  } catch (error) {
-    return { available: false, reason: (error as Error)?.message ?? "Could not reach the chain." };
-  }
-}
