@@ -108,6 +108,13 @@ export interface ClaimResult extends ClaimRequest {
   statement: string;
   /** Verifier-facing wording, e.g. "GPA is at least 3.5". */
   label: string;
+  /**
+   * Set once this claim has been published as a real transaction — a public
+   * tx hash, not a private value. Lets the proof page know which claims are
+   * already on chain across reloads, instead of forgetting on every mount
+   * and risking a second, wasted transaction for the same claim.
+   */
+  publishedTxId?: string;
 }
 
 // --- Proof --------------------------------------------------------------

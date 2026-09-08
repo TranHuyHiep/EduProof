@@ -15,10 +15,10 @@
 // static import would add it to every page of the bundle rather than only the
 // one that generates proofs.
 
-import type { WalletConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
+import type { ConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
 import type { Proof, Student, VerificationResult } from "@/types";
 import { getSchool } from "@/lib/data";
-import { explorerContractUrl, explorerTxUrl, midnightConfig } from "@/lib/midnight/config";
+import { explorerContractUrl, explorerTxUrl, midnightConfig, NETWORK } from "@/lib/midnight/config";
 import { encodeOperand, operatorCode, schoolIdHash } from "@/lib/midnight/encoding";
 import { attributeSpec } from "./attributes";
 import { labelOf, statementOf } from "./claims";
@@ -27,6 +27,9 @@ import type { GenerateProofInput, ProofProvider } from "./types";
 
 const randomHex = (n: number): string =>
   Array.from({ length: n }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+
+/** How long a publish may wait for its transaction before it is called dead. */
+const PUBLISH_TIMEOUT_MS = 5 * 60_000;
 
 export class MidnightProofProvider implements ProofProvider {
   readonly name = "midnight";
@@ -98,7 +101,7 @@ export class MidnightProofProvider implements ProofProvider {
     student: Student,
     proof: Proof,
     claimIndex: number,
-    walletApi: WalletConnectedAPI,
+    walletApi: ConnectedAPI,
   ): Promise<{ txId: string }> {
     const claim = proof.claims[claimIndex];
     if (!claim) throw new Error(`Proof ${proof.proofId} has no claim at index ${claimIndex}.`);
@@ -108,14 +111,54 @@ export class MidnightProofProvider implements ProofProvider {
 
     const spec = attributeSpec(claim.attribute);
 
-    const [{ openProvingSession }, runtime, contractsSdk] = await Promise.all([
+    const [{ openProvingSession }, runtime, contractsSdk, { setNetworkId }] = await Promise.all([
       import("@/lib/midnight/prover"),
       import("@midnight-ntwrk/compact-runtime"),
       import("@midnight-ntwrk/midnight-js-contracts"),
+      import("@midnight-ntwrk/midnight-js-network-id"),
     ]);
     const { findDeployedContract } = contractsSdk;
 
+    // Module-level state in midnight-js, and everything below refuses to run
+    // without it: "Network ID has not been configured. Call setNetworkId()
+    // before any wallet or contract operation." Every Node script that reaches
+    // the chain sets it (scripts/lib/wallet-setup.mjs, deploy-contract.mjs);
+    // the browser path had no equivalent, so it failed here rather than at
+    // import time. Set before openProvingSession, which is the first call that
+    // touches the runtime.
+    setNetworkId(NETWORK);
+
     const session = await openProvingSession(student);
+
+    // The contract must hold the key this school signs with — not merely SOME
+    // key for it.
+    //
+    // `session.evaluate()` cannot answer this: it runs against a local
+    // Simulator that this session just registered the key into, so it always
+    // agrees with itself. The chain is the only place the two can disagree,
+    // and they did: changing SCHOOL_SIGNING_KEY after registering left the
+    // registry holding a stale key, and every publish failed with "failed
+    // assert: bad issuer signature" — after the wallet had been signed and
+    // the fee paid. Checked here, before anything is built or signed.
+    const { issuerRegistered, issuerVerdict } = await import("@/lib/midnight/chain");
+    const onChain = await issuerRegistered(schoolIdHash(student.schoolId));
+
+    // A stale or missing key is repaired here rather than reported.
+    //
+    // Reporting it was the old behaviour, and it left the student holding an
+    // error they could do nothing about: registering an issuer needs a wallet
+    // and a chain write, which is exactly what this function already has open.
+    // The equivalent script cannot do it — its headless wallet syncs from
+    // genesis for hours and then dies inside balanceTx — so the browser is the
+    // only path that reaches the chain at all.
+    //
+    // `registerIssuer` uses `issuers.insert()`, an upsert: registering a school
+    // that is already registered replaces its key in place rather than adding a
+    // second entry (verified against the simulator in
+    // contracts/tests/real-issuer.test.ts before any DUST was spent on it).
+    const verdict = issuerVerdict(onChain, session.issuerKey);
+    const needsRegistering = verdict === "mismatch" || verdict === "not-registered";
+
     const args = session.callArgs(
       spec.slot,
       operatorCode(claim.operator),
@@ -184,15 +227,65 @@ export class MidnightProofProvider implements ProofProvider {
       initialPrivateState: { studentSk: 0n },
     });
 
-    const result = await found.callTx.proveCredentialPredicate(
-      args.schoolIdHash,
-      args.subject,
-      args.slot,
-      args.op,
-      args.operand,
-      args.credential,
-      args.signature,
-    );
+    // Repair the registry first, through the same contract handle.
+    //
+    // Two transactions rather than one, and only when the chain disagrees with
+    // the school — the common case costs nothing. Doing it here rather than in
+    // a separate flow keeps the wiring single: one `findDeployedContract`, one
+    // wallet session, one place where a circuit is called.
+    if (needsRegistering) {
+      const registration = await found.callTx.registerIssuer(
+        args.schoolIdHash,
+        runtime.constructJubjubPoint(session.issuerKey.x, session.issuerKey.y),
+      );
+
+      // A transaction can reach a block and still have failed. Carrying on
+      // after that would produce the "bad issuer signature" this exists to
+      // prevent, having now paid twice.
+      if (registration.public?.status !== "SucceedEntirely") {
+        throw new Error(
+          `Registering ${proof.issuer.schoolName}'s key on chain did not succeed — ` +
+            `status ${registration.public?.status ?? "unknown"}. The proof was not published.`,
+        );
+      }
+    }
+
+    // proveCredentialPredicate awaits the whole chain — prove, balance,
+    // submit, then watchForTxData, whose interface contract is to wait
+    // indefinitely. Nothing below it ever gives up on a transaction the
+    // wallet never submitted, and a wallet that declines to relay is
+    // indistinguishable from one that relayed: submitTransaction() returns
+    // void. A publish that has not settled in five minutes has not failed to
+    // *confirm*, it has failed to *happen*, and saying so beats a spinner
+    // that never stops.
+    //
+    // The race only bounds the wait: watchForTxData's own polling loop has no
+    // cancellation path through the SDK and keeps running until the page
+    // goes. A known limit, not something to redesign around here.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      found.callTx.proveCredentialPredicate(
+        args.schoolIdHash,
+        args.subject,
+        args.slot,
+        args.op,
+        args.operand,
+        args.credential,
+        args.signature,
+      ),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                "The transaction has not appeared on chain after five minutes. " +
+                  "If your wallet never asked you to sign, it never received it.",
+              ),
+            ),
+          PUBLISH_TIMEOUT_MS,
+        );
+      }),
+    ]).finally(() => clearTimeout(timer));
 
     const status = result.public?.status;
     if (status !== "SucceedEntirely") {

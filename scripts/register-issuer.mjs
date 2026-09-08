@@ -69,9 +69,13 @@ async function main() {
   const { hashToField } = await import("../lib/school/circuit-vector.ts");
   const { circuitPublicKey } = await import("../lib/school/keys.ts");
 
-  // One school in Wave 1. A loop here would suggest otherwise.
+  // The registry only ever held one school, and only its key was ever the one
+  // on Preprod — a loop here would suggest otherwise. The id still has to be
+  // passed: keys.ts became per-school when the demo grew to three, and this
+  // call kept its old no-argument shape, which reached the chain-touching
+  // path as "Cannot read properties of undefined (reading 'toUpperCase')".
   const school = JSON.parse(readFileSync("data/schools.json", "utf8")).schools[0];
-  const issuerPk = await circuitPublicKey();
+  const issuerPk = await circuitPublicKey(school.id);
 
   console.log("\nRegistering the issuer on chain\n");
   console.log(`  contract   ${address}`);

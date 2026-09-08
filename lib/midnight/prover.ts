@@ -65,6 +65,16 @@ export interface CircuitCallArgs {
 /** Everything needed to evaluate predicates against one student's credential. */
 export interface ProvingSession {
   subject: bigint;
+  /**
+   * The school's circuit key, as the school currently reports it.
+   *
+   * Exposed so a caller about to submit a transaction can compare it with the
+   * key the contract holds. `evaluate()` cannot make that comparison: it runs
+   * against a local Simulator this session registered the key into, so it
+   * always agrees with itself — which is why proofs passed locally and failed
+   * on chain with "bad issuer signature" for a day.
+   */
+  issuerKey: { x: bigint; y: bigint };
   evaluate(slot: number, op: bigint, operand: bigint): Promise<boolean>;
   /**
    * The same arguments `evaluate` passes to the local Simulator, handed back
@@ -119,6 +129,7 @@ export async function openProvingSession(student: Student): Promise<ProvingSessi
 
   return {
     subject,
+    issuerKey: { x: issuerPk.x, y: issuerPk.y },
     evaluate: (slot, op, operand) =>
       runner.prove({ schoolIdHash: idHash, subject, slot, op, operand, credential: vector, signature }),
     callArgs: (slot, op, operand) => ({

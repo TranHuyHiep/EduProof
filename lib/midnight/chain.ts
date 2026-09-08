@@ -38,6 +38,42 @@ export interface IssuerCheck {
   available: boolean;
   registered?: boolean;
   reason?: string;
+  /**
+   * The key the contract actually holds, when one is registered.
+   *
+   * `registered` alone answers a weaker question than it appears to. The
+   * registry held a key for this school throughout the period when every
+   * proof failed on chain with "bad issuer signature" — it was simply a key
+   * from before SCHOOL_SIGNING_KEY was changed. Membership was true; the
+   * signature still did not verify. Callers that can obtain the school's
+   * current key should compare it against this.
+   */
+  key?: { x: bigint; y: bigint };
+}
+
+/**
+ * Whether a publish may proceed, given what the chain holds and what the
+ * school signs with.
+ *
+ * Extracted so the decision can be tested without a wallet, a proof server
+ * and a chain — and so the browser path and any script share one rule rather
+ * than two that can drift.
+ *
+ * An unreachable chain returns "proceed" deliberately: an indexer outage is
+ * not evidence of a mismatch, and the transaction itself remains the
+ * authority. A registered issuer whose key is absent proceeds for the same
+ * reason — the reader is allowed not to report one.
+ */
+export type IssuerVerdict = "proceed" | "not-registered" | "mismatch";
+
+export function issuerVerdict(
+  onChain: IssuerCheck,
+  signingKey: { x: bigint; y: bigint },
+): IssuerVerdict {
+  if (!onChain.available) return "proceed";
+  if (onChain.registered === false) return "not-registered";
+  if (onChain.key && onChain.key.x !== signingKey.x) return "mismatch";
+  return "proceed";
 }
 
 const NO_CONTRACT = "No contract address is configured.";
@@ -152,7 +188,13 @@ export async function issuerRegistered(schoolIdHash: bigint): Promise<IssuerChec
     const result = await readLedger();
     if ("error" in result) return { available: false, reason: result.error };
 
-    return { available: true, registered: result.ledger.issuers.member(schoolIdHash) };
+    const registered = result.ledger.issuers.member(schoolIdHash);
+    if (!registered) return { available: true, registered: false };
+
+    // Returned alongside, so a caller can ask the stronger question: not "is
+    // some key registered" but "is it the key this school signs with".
+    const pk = result.ledger.issuers.lookup(schoolIdHash);
+    return { available: true, registered: true, key: { x: pk.x, y: pk.y } };
   } catch (error) {
     return { available: false, reason: (error as Error)?.message ?? "Could not reach the chain." };
   }
