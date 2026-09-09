@@ -175,10 +175,6 @@ export class MidnightProofProvider implements ProofProvider {
           ctx.privateState,
           ctx.privateState.studentSk,
         ],
-        getSchnorrReduction: (ctx: { privateState: { studentSk: bigint } }, challengeHash: bigint) => [
-          ctx.privateState,
-          [challengeHash / (1n << 248n), challengeHash % (1n << 248n)],
-        ],
       }),
       CompiledContract.withCompiledFileAssets("contracts/build/eduproof"),
     );

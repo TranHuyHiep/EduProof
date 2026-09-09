@@ -220,12 +220,6 @@ async function main() {
       // appears in a circuit argument, so nothing that builds a transaction
       // ever holds it.
       studentSecretKey: (ctx) => [ctx.privateState, ctx.privateState.studentSk],
-      // The circuit hashes the challenge, then asks for the split. Checking a
-      // division is cheap in a circuit; doing one is not.
-      getSchnorrReduction: (ctx, challengeHash) => [
-        ctx.privateState,
-        [challengeHash / (1n << 248n), challengeHash % (1n << 248n)],
-      ],
     }),
     CompiledContract.withCompiledFileAssets(ASSETS),
   );
