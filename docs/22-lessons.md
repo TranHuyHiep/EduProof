@@ -211,10 +211,37 @@ Hai bên đã khớp sẵn. Điểm dễ nhầm: `scripts/deploy-contract.mjs` �
 `.env.local` thiếu `NEXT_PUBLIC_PROOF_SERVER` là vô can. Kiểm tra bằng
 `docker ps | grep 6300` trước khi đi theo hướng version.
 
-### Giả thuyết còn lại
+### Nguyên nhân thật — đã xác minh 09/09/2026
 
-DUST spend proof sinh trên state đã cũ. Ví mất hơn hai tiếng để sync, nên tới
-lúc submit thì ảnh chụp DUST không còn khớp chain. Chưa xác minh được.
+DUST spend proof sinh trên state đã cũ. **Đúng như nghi ngờ, và cơ chế cụ thể
+là một bug do chính bản sửa checkpoint tạo ra.**
+
+`openFundedWallet()` chờ sync xong trước khi cho submit, nhưng điều kiện vào
+vòng chờ là:
+
+```js
+if (dust === 0n) { …chờ isStrictlyComplete()… }
+```
+
+Điều kiện đó **đúng khi mọi lần chạy đều sync từ genesis**: không có DUST
+nghĩa là chưa bắt kịp. Khi thêm restore-từ-checkpoint, lập luận đó gãy — ví
+khôi phục báo ngay số dư đã lưu, nên `dust > 0n` khiến vòng chờ **bị nhảy
+qua hoàn toàn**, và fee balancer dựng spend proof trên ảnh chụp trễ hai ngày.
+
+Node từ chối: `Custom error: 170`.
+
+Điểm đáng nhớ: **số dư không trả lời câu hỏi đang hỏi.** Câu hỏi là "view local
+đã bắt kịp chain chưa", và chỉ `isStrictlyComplete()` trả lời được. Bản sửa
+đổi điều kiện thành:
+
+```js
+const dustSynced = state.dust.progress?.isStrictlyComplete?.() === true;
+if (!dustSynced) { …chờ… }
+```
+
+Bài học rộng hơn: một tối ưu (checkpoint) có thể **vô hiệu hoá một rào chắn**
+ở chỗ khác mà không ai sửa rào chắn đó. Rào chắn vẫn còn nguyên trong code,
+vẫn đọc như đang bảo vệ — chỉ là không còn chạy nữa.
 
 ### Vì sao việc này đắt
 
