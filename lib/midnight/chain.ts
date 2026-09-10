@@ -1,10 +1,10 @@
 // Reading the deployed contract's ledger state.
 //
 // This is the half of the dual-ledger model that IS public. The circuit runs
-// against private witnesses on the student's device; the issuer registry and
-// the verification counter live on chain, and anyone can read them without a
-// wallet, a key, or permission. That asymmetry is the product, so the app
-// should show both halves rather than assert them.
+// against private witnesses on the student's device; the verification counter
+// lives on chain, and anyone can read it without a wallet, a key, or
+// permission. That asymmetry is the product, so the app should show both
+// halves rather than assert them.
 //
 // Read-only on purpose. Submitting a transaction costs DUST and takes a block,
 // which is the wrong trade for something a verifier does on page load. Writes
@@ -19,8 +19,6 @@ import { midnightConfig } from "./config.ts";
 /** What the ledger says, or why it could not be read. */
 export interface ChainState {
   available: boolean;
-  /** Schools registered on chain. */
-  issuerCount?: number;
   /** Predicates this contract has verified since deployment. */
   proofsVerified?: bigint;
   /**
@@ -30,13 +28,6 @@ export interface ChainState {
    */
   txHash?: string;
   /** Set when `available` is false. */
-  reason?: string;
-}
-
-/** Whether a given school's key is registered on the deployed contract. */
-export interface IssuerCheck {
-  available: boolean;
-  registered?: boolean;
   reason?: string;
 }
 
@@ -131,7 +122,6 @@ export async function chainState(): Promise<ChainState> {
 
     return {
       available: true,
-      issuerCount: Number(result.ledger.issuers.size()),
       proofsVerified: result.ledger.proofsVerified,
       txHash: result.txHash,
     };
@@ -140,20 +130,3 @@ export async function chainState(): Promise<ChainState> {
   }
 }
 
-/**
- * Whether the chain agrees this school may issue credentials.
- *
- * Wave 1 shipped the issuer list as a JSON file, which meant the app vouched
- * for itself. Asking the ledger is a different claim: the registration is
- * public, and a verifier can check it without trusting this deployment.
- */
-export async function issuerRegistered(schoolIdHash: bigint): Promise<IssuerCheck> {
-  try {
-    const result = await readLedger();
-    if ("error" in result) return { available: false, reason: result.error };
-
-    return { available: true, registered: result.ledger.issuers.member(schoolIdHash) };
-  } catch (error) {
-    return { available: false, reason: (error as Error)?.message ?? "Could not reach the chain." };
-  }
-}

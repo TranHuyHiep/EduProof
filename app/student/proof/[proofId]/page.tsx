@@ -7,6 +7,7 @@ import { IconAlert, IconArrowRight, IconCopy, IconCheck, IconLock } from "@/comp
 import { ATTRIBUTES, proofStore } from "@/lib/proof";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { explorerTxUrl, midnightConfig, providerName } from "@/lib/midnight/config";
+import { publishErrorMessage } from "@/lib/midnight/errors";
 import { connectWallet, installedWallets } from "@/lib/wallet";
 import { useWallet } from "@/lib/wallet-context";
 import { useStudent } from "@/lib/use-student";
@@ -38,7 +39,20 @@ export default function IssuedProofPage({
 
   useEffect(() => {
     setLink(`${window.location.origin}/verify/${proofId}`);
-    proofStore.read(proofId).then(setProof);
+    proofStore.read(proofId).then((p) => {
+      setProof(p);
+      if (!p) return;
+      // A claim may already be published — by a retry on this page in an
+      // earlier visit, or by create-proof publishing right after generating.
+      // Without this, every mount would forget that and re-offer "Publish on
+      // chain" for a claim already on chain, risking a second, wasted
+      // transaction for the same claim.
+      const known: Record<number, PublishState> = {};
+      p.claims.forEach((c, i) => {
+        if (c.publishedTxId) known[i] = { stage: "done", txId: c.publishedTxId };
+      });
+      setPublish(known);
+    });
   }, [proofId]);
 
   async function copy() {
@@ -48,22 +62,6 @@ export default function IssuedProofPage({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       /* clipboard blocked — the link is selectable on screen either way */
-    }
-  }
-
-  /** docs/22-lessons.md §6 — messages keyed by the Substrate custom error code. */
-  function errorMessage(err: unknown): string {
-    const raw = err instanceof Error ? err.message : String(err);
-    const code = /Custom error:?\s*(\d+)/i.exec(raw)?.[1];
-    switch (code) {
-      case "170":
-        return "Your wallet is still syncing. Try again in a few minutes.";
-      case "173":
-        return "Not enough DUST to cover the fee.";
-      case "174":
-        return "Something went wrong building the transaction — this has been logged.";
-      default:
-        return raw;
     }
   }
 
@@ -95,9 +93,20 @@ export default function IssuedProofPage({
       setPublish((p) => ({ ...p, [claimIndex]: { stage: "waiting-wallet" } }));
       const result = await provider.publishProof(student, proof, claimIndex, api);
 
+      // Persisted, not just held in this page's React state — a claim
+      // published here must still read as "done" after a reload, or a
+      // student who navigates away and back could pay for the same
+      // transaction twice.
+      const updated: Proof = {
+        ...proof,
+        claims: proof.claims.map((c, i) => (i === claimIndex ? { ...c, publishedTxId: result.txId } : c)),
+      };
+      await proofStore.save(updated);
+      setProof(updated);
+
       setPublish((p) => ({ ...p, [claimIndex]: { stage: "done", txId: result.txId } }));
     } catch (err) {
-      setPublish((p) => ({ ...p, [claimIndex]: { stage: "error", message: errorMessage(err) } }));
+      setPublish((p) => ({ ...p, [claimIndex]: { stage: "error", message: publishErrorMessage(err) } }));
     }
   }
 

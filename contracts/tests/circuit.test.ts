@@ -1,14 +1,20 @@
 // What the circuit actually constrains.
 //
-// A circuit that returns the right Boolean but forgets to check the signature
-// is worse than no circuit: it looks like a proof and proves nothing. So the
-// happy paths here are the smaller half. The cases that matter are the ones
-// where a bad input must make the circuit refuse outright.
+// A circuit that returns the right Boolean but forgets to check what binds
+// the credential to its holder is worse than no circuit: it looks like a
+// proof and proves less than it appears to. So the happy paths here are the
+// smaller half. The cases that matter are the ones where a bad input must
+// make the circuit refuse outright.
+//
+// Ownership is now the ONLY security property this circuit enforces — issuer
+// authenticity went with the Schnorr verification — so it gets the most
+// coverage, and there is a test at the bottom recording exactly what was
+// lost.
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { SLOT, STATUS_CODE, DEGREE_CODE } from "@/lib/school/canonical";
 import { OPERATOR_CODE } from "@/lib/midnight/encoding";
-import { School, Simulator, subjectCommitment } from "./simulator";
+import { Simulator, subjectCommitment } from "./simulator";
 
 const SCHOOL_ID_HASH = 0x1234abcdn;
 
@@ -28,20 +34,14 @@ function aliceCredential(subject: bigint): bigint[] {
 
 const STUDENT_SK = 424242n;
 
-let school: School;
 let sim: Simulator;
 let subject: bigint;
 let credential: bigint[];
-let signature: Awaited<ReturnType<School["sign"]>>;
 
 beforeEach(async () => {
-  school = await School.create();
   sim = await Simulator.create({ studentSk: STUDENT_SK });
-  await sim.registerIssuer(SCHOOL_ID_HASH, school.pk);
-
   subject = subjectCommitment(STUDENT_SK);
   credential = aliceCredential(subject);
-  signature = await school.sign(credential);
 });
 
 /** Runs the main circuit with everything valid except what a test overrides. */
@@ -53,21 +53,9 @@ function prove(overrides: Partial<Parameters<Simulator["proveCredentialPredicate
     op: OPERATOR_CODE[">="],
     operand: 350n,
     credential,
-    signature,
     ...overrides,
   });
 }
-
-describe("the issuer registry", () => {
-  it("records the school's key on the public ledger", () => {
-    expect(sim.ledger.issuers.member(SCHOOL_ID_HASH)).toBe(true);
-    expect(sim.ledger.issuers.size()).toBe(1n);
-  });
-
-  it("holds no key for a school that never registered", () => {
-    expect(sim.ledger.issuers.member(0xdeadn)).toBe(false);
-  });
-});
 
 describe("the predicate is evaluated on the requested slot", () => {
   it("passes when the GPA clears the bar", async () => {
@@ -134,48 +122,17 @@ describe("the predicate is evaluated on the requested slot", () => {
   });
 });
 
-describe("a credential must come from a registered issuer", () => {
-  it("refuses a school the ledger does not know", async () => {
-    await expect(prove({ schoolIdHash: 0xbadbadn })).rejects.toThrow(/unknown issuer/i);
-  });
-
-  it("refuses a signature from a different school", async () => {
-    const impostor = await School.create();
-    await expect(prove({ signature: await impostor.sign(credential) }))
-      .rejects.toThrow(/bad issuer signature/i);
-  });
-
+describe("a credential must name the school it is presented under", () => {
   it("refuses a credential whose issuer slot names another school", async () => {
-    // Without this check, a signature valid under school A could be presented
-    // against school B's registry entry.
+    // Without this check, a credential issued for school A could be presented
+    // as though it came from school B.
     const forged = [...credential];
     forged[SLOT.SCHOOL_ID] = 0x9999n;
-    await expect(prove({ credential: forged, signature: await school.sign(forged) }))
-      .rejects.toThrow(/issuer mismatch/i);
-  });
-});
-
-describe("the credential must not have been altered", () => {
-  it.each([
-    ["GPA", SLOT.GPA_SCALED, 400n],
-    ["status", SLOT.STATUS, BigInt(STATUS_CODE.GRADUATED)],
-    ["academic year", SLOT.ACADEMIC_YEAR, 8n],
-    ["expiry", SLOT.EXPIRES_AT, 99999n],
-  ] as const)("refuses a credential with a rewritten %s", async (_label, slot, value) => {
-    // The student is the one holding the credential, so this is exactly the
-    // attack the signature exists to stop.
-    const tampered = [...credential];
-    tampered[slot] = value;
-    await expect(prove({ credential: tampered }))
-      .rejects.toThrow(/bad issuer signature/i);
+    await expect(prove({ credential: forged })).rejects.toThrow(/issuer mismatch/i);
   });
 
-  it("refuses a credential re-signed by the holder", async () => {
-    const forger = await School.create();
-    const tampered = [...credential];
-    tampered[SLOT.GPA_SCALED] = 400n;
-    await expect(prove({ credential: tampered, signature: await forger.sign(tampered) }))
-      .rejects.toThrow(/bad issuer signature/i);
+  it("refuses when the statement names a school the credential does not", async () => {
+    await expect(prove({ schoolIdHash: 0xbadbadn })).rejects.toThrow(/issuer mismatch/i);
   });
 });
 
@@ -193,12 +150,11 @@ describe("only the holder can use a credential", () => {
   });
 
   it("refuses a credential issued to someone else", async () => {
-    // Bob's credential, correctly signed, presented under Alice's subject.
+    // Bob's credential presented under Alice's subject.
     const bobSubject = subjectCommitment(777n);
     const bobCredential = aliceCredential(bobSubject);
-    await expect(
-      prove({ credential: bobCredential, signature: await school.sign(bobCredential) }),
-    ).rejects.toThrow(/subject mismatch/i);
+    await expect(prove({ credential: bobCredential }))
+      .rejects.toThrow(/subject mismatch/i);
   });
 
   it("accepts the holder whose secret matches", async () => {
@@ -220,9 +176,30 @@ describe("the public ledger records use without recording users", () => {
     expect(sim.ledger.proofsVerified).toBe(0n);
   });
 
-  it("holds nothing but issuer keys and a count", () => {
+  it("holds nothing but a count", () => {
     // The structural privacy guarantee, at the ledger level: there is nowhere
     // for a student value to be written even if a later circuit tried.
-    expect(Object.keys(sim.ledger).sort()).toEqual(["issuers", "proofsVerified"]);
+    expect(Object.keys(sim.ledger).sort()).toEqual(["proofsVerified"]);
+  });
+});
+
+// The property this version gave up, written down as a passing test.
+//
+// It is here so nobody has to read the contract header to discover it, and so
+// that restoring issuer authenticity has an obvious place to start: this test
+// should FAIL the day a signature check comes back.
+describe("what this circuit does NOT prove", () => {
+  it("accepts a credential nobody issued", async () => {
+    // No school signed this. The GPA is invented. The circuit proves
+    // "GPA >= 3.50" over it anyway, because nothing here checks a signature.
+    //
+    // The proof remains sound about the arithmetic and private about the
+    // value — it simply says nothing about where the credential came from.
+    const invented = new Array<bigint>(16).fill(0n);
+    invented[SLOT.SCHOOL_ID] = SCHOOL_ID_HASH;
+    invented[SLOT.SUBJECT] = subject;
+    invented[SLOT.GPA_SCALED] = 400n;
+
+    expect(await prove({ credential: invented })).toBe(true);
   });
 });

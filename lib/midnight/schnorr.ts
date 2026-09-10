@@ -6,10 +6,24 @@
 // language 0.26 / runtime 0.19.0, which target ledger 9, deployed nowhere
 // public. See docs/22-lessons.md.
 //
-// This file is the single implementation. The school signs with it, the tests
-// sign with it, and the circuit checks the result — so there is one place
-// where the challenge construction is defined, and no chance of the signer and
-// the verifier drifting apart.
+// NOTHING VERIFIES THESE SIGNATURES ANY MORE.
+//
+// contracts/src/schnorr.compact was deleted along with the circuit's issuer
+// check, so the counterpart that made this a matched pair is gone. What
+// remains is the school's side: lib/school/keys.ts still derives a circuit
+// key and signs the canonical vector with it, and lib/school/schema.ts still
+// publishes the public half over GraphQL.
+//
+// That is deliberate, not an oversight. `lib/school/**` is an independent
+// vendor whose GraphQL schema is a public specification (see
+// docs/30-school-vendor-contract.md); gutting it because EduProof stopped
+// checking the signature would break a contract the school did not agree to
+// change. The school keeps issuing signed credentials. EduProof simply no
+// longer looks at the signature — see contracts/src/eduproof.compact.
+//
+// So this file is now the school's signing implementation only. If issuer
+// authenticity comes back, the verifier side has to be rebuilt to match the
+// challenge construction defined here.
 
 /** The order of the JubJub subgroup. Every scalar is reduced into this. */
 export const JUBJUB_SCALAR_ORDER =

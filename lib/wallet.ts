@@ -17,7 +17,7 @@
 // @midnight-ntwrk/dapp-connector-api, and docs/22-lessons.md for why guessing
 // a wallet API from a different chain's convention costs hours here.
 
-import type { InitialAPI, WalletConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
+import type { ConnectedAPI, InitialAPI, WalletConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
 import { NETWORK } from "@/lib/midnight/config";
 
 const DEMO_WALLET_KEY = "eduproof.demo.wallet";
@@ -33,8 +33,68 @@ export interface WalletConnection {
    * caller needs to sign and submit an actual transaction (see
    * lib/wallet-context.tsx) — a demo connection has nothing behind it to sign
    * with.
+   *
+   * `ConnectedAPI`, not `WalletConnectedAPI`: `connect()` returns the wider
+   * type (`WalletConnectedAPI & HintUsage`), and storing the narrower one put
+   * `hintUsage` out of reach — which is how this app came to never ask a
+   * wallet for signing permission at all. See `hintSigningUsage` below.
    */
-  api?: WalletConnectedAPI;
+  api?: ConnectedAPI;
+}
+
+/**
+ * The wallet methods a publish will actually reach, in the order it reaches
+ * them.
+ *
+ * Listed for `hintUsage` so the wallet can raise its permission prompt up
+ * front. A method the DApp later calls but did not hint is exactly what the
+ * hint exists to prevent, so this has to stay in step with
+ * lib/midnight/lace-provider.ts.
+ */
+const PUBLISH_METHODS: Array<keyof WalletConnectedAPI> = [
+  "getShieldedAddresses",
+  "getUnshieldedAddress",
+  "getConfiguration",
+  "balanceUnsealedTransaction",
+  "submitTransaction",
+];
+
+/**
+ * Asks the wallet for the permissions a publish needs, before anything is
+ * proved.
+ *
+ * `hintUsage` is how the DApp Connector API says this should be done: a wallet
+ * "can use these calls as an opportunity to ask user for permissions and in
+ * such case - resolve the promise only after the user has granted the
+ * permissions". Without it a wallet is entitled to refuse
+ * `balanceUnsealedTransaction` later without showing anything — which matches
+ * the symptom this was written for: no signing prompt, and no transaction.
+ *
+ * Called at connect time rather than at publish time deliberately. This may
+ * raise a modal, and a modal belongs in the step where the student is already
+ * waiting on their wallet — not inside a "publishing" spinner, which would
+ * also re-prompt once per claim, since publishProof() runs per claim.
+ *
+ * Absent on older wallets, where `HintUsage` was not yet part of the connected
+ * API, so a missing method is not an error: those wallets simply prompt on
+ * first use. A hint that is REJECTED is different — the user declined, and
+ * saying so now beats failing later with something about transaction binding.
+ */
+async function hintSigningUsage(api: ConnectedAPI, walletName: string): Promise<void> {
+  // Checked at runtime as well as in the type: the type is a contract with an
+  // extension this code does not ship, and an older wallet can satisfy the
+  // rest of the interface without this method existing.
+  if (typeof api.hintUsage !== "function") return;
+
+  try {
+    await api.hintUsage(PUBLISH_METHODS);
+  } catch (error) {
+    throw new Error(
+      `${walletName} declined permission to sign and submit transactions ` +
+        `(${error instanceof Error ? error.message : String(error)}). ` +
+        "Approve the request in the wallet, then try again.",
+    );
+  }
 }
 
 /** Wallets currently injected into `window.midnight`, keyed as the wallet chose. */
@@ -81,6 +141,9 @@ export async function connectInjectedWallet(key: string): Promise<WalletConnecti
   if (!unshieldedAddress) {
     throw new Error(`${wallet.api.name} did not return an address.`);
   }
+  // Before the connection is handed out, not lazily when a publish needs it —
+  // see hintSigningUsage.
+  await hintSigningUsage(connected, wallet.api.name);
   return { address: unshieldedAddress, isDemo: false, walletName: wallet.api.name, api: connected };
 }
 

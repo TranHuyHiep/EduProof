@@ -108,6 +108,13 @@ export interface ClaimResult extends ClaimRequest {
   statement: string;
   /** Verifier-facing wording, e.g. "GPA is at least 3.5". */
   label: string;
+  /**
+   * Set once this claim has been published as a real transaction — a public
+   * tx hash, not a private value. Lets the proof page know which claims are
+   * already on chain across reloads, instead of forgetting on every mount
+   * and risking a second, wasted transaction for the same claim.
+   */
+  publishedTxId?: string;
 }
 
 // --- Proof --------------------------------------------------------------
@@ -142,18 +149,13 @@ export interface Proof {
  * What the deployed contract's public ledger says, at verification time.
  *
  * Deliberately only aggregates. Nothing here is per-student or per-proof:
- * `issuerRegistered` is about a school, and `proofsVerified` counts every
- * predicate the contract has ever checked. Putting anything narrower on chain
- * would let a verifier link proofs back to a person, which is the one thing
- * this product refuses.
+ * `proofsVerified` counts every predicate the contract has ever checked.
+ * Putting anything narrower on chain would let a verifier link proofs back to
+ * a person, which is the one thing this product refuses.
  */
 export interface OnChainState {
   /** False when no contract is configured or the indexer cannot be reached. */
   available: boolean;
-  /** Whether the chain's issuer registry holds this proof's school. */
-  issuerRegistered?: boolean;
-  /** Schools registered on the contract. */
-  issuerCount?: number;
   /** Predicates the contract has verified since deployment. */
   proofsVerified?: string;
   /** Where a human can check this themselves. */

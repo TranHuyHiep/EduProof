@@ -15,10 +15,10 @@
 // static import would add it to every page of the bundle rather than only the
 // one that generates proofs.
 
-import type { WalletConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
+import type { ConnectedAPI } from "@midnight-ntwrk/dapp-connector-api";
 import type { Proof, Student, VerificationResult } from "@/types";
 import { getSchool } from "@/lib/data";
-import { explorerContractUrl, explorerTxUrl, midnightConfig } from "@/lib/midnight/config";
+import { explorerContractUrl, explorerTxUrl, midnightConfig, NETWORK } from "@/lib/midnight/config";
 import { encodeOperand, operatorCode, schoolIdHash } from "@/lib/midnight/encoding";
 import { attributeSpec } from "./attributes";
 import { labelOf, statementOf } from "./claims";
@@ -27,6 +27,9 @@ import type { GenerateProofInput, ProofProvider } from "./types";
 
 const randomHex = (n: number): string =>
   Array.from({ length: n }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+
+/** How long a publish may wait for its transaction before it is called dead. */
+const PUBLISH_TIMEOUT_MS = 5 * 60_000;
 
 export class MidnightProofProvider implements ProofProvider {
   readonly name = "midnight";
@@ -98,7 +101,7 @@ export class MidnightProofProvider implements ProofProvider {
     student: Student,
     proof: Proof,
     claimIndex: number,
-    walletApi: WalletConnectedAPI,
+    walletApi: ConnectedAPI,
   ): Promise<{ txId: string }> {
     const claim = proof.claims[claimIndex];
     if (!claim) throw new Error(`Proof ${proof.proofId} has no claim at index ${claimIndex}.`);
@@ -108,14 +111,25 @@ export class MidnightProofProvider implements ProofProvider {
 
     const spec = attributeSpec(claim.attribute);
 
-    const [{ openProvingSession }, runtime, contractsSdk] = await Promise.all([
+    const [{ openProvingSession }, runtime, contractsSdk, { setNetworkId }] = await Promise.all([
       import("@/lib/midnight/prover"),
       import("@midnight-ntwrk/compact-runtime"),
       import("@midnight-ntwrk/midnight-js-contracts"),
+      import("@midnight-ntwrk/midnight-js-network-id"),
     ]);
     const { findDeployedContract } = contractsSdk;
 
+    // Module-level state in midnight-js, and everything below refuses to run
+    // without it: "Network ID has not been configured. Call setNetworkId()
+    // before any wallet or contract operation." Every Node script that reaches
+    // the chain sets it (scripts/lib/wallet-setup.mjs, deploy-contract.mjs);
+    // the browser path had no equivalent, so it failed here rather than at
+    // import time. Set before openProvingSession, which is the first call that
+    // touches the runtime.
+    setNetworkId(NETWORK);
+
     const session = await openProvingSession(student);
+
     const args = session.callArgs(
       spec.slot,
       operatorCode(claim.operator),
@@ -142,11 +156,27 @@ export class MidnightProofProvider implements ProofProvider {
       new BrowserZkConfigProvider();
 
     const PRIVATE_STATE_ID = "eduproof-publish";
+
+    // The student's REAL secret, not a placeholder.
+    //
+    // The circuit's first assertion is
+    // `subjectCommitment(studentSecretKey()) == subject`, and `subject` was
+    // derived from this same secret when the proving session opened. Seeding
+    // the private state with 0n instead made the witness hand the circuit a
+    // different key, so the commitment never matched and every publish died
+    // on chain with "failed assert: not the credential holder".
+    //
+    // The local Simulator could not catch it: openProvingSession() passes the
+    // real secret to Simulator.create() directly, so only the on-chain path
+    // reads the private-state provider at all.
+    const { studentSecretKey } = await import("@/lib/midnight/prover");
+    const privateState = { studentSk: studentSecretKey() };
+
     const providers = {
       publicDataProvider: browserPublicDataProvider(),
       proofProvider: httpClientProofProvider(midnightConfig.proofServer, zkConfigProvider),
       zkConfigProvider,
-      privateStateProvider: inMemoryPrivateStateProvider(PRIVATE_STATE_ID, { studentSk: 0n }),
+      privateStateProvider: inMemoryPrivateStateProvider(PRIVATE_STATE_ID, privateState),
       walletProvider: wallet,
       midnightProvider: wallet,
     };
@@ -160,10 +190,6 @@ export class MidnightProofProvider implements ProofProvider {
         studentSecretKey: (ctx: { privateState: { studentSk: bigint } }) => [
           ctx.privateState,
           ctx.privateState.studentSk,
-        ],
-        getSchnorrReduction: (ctx: { privateState: { studentSk: bigint } }, challengeHash: bigint) => [
-          ctx.privateState,
-          [challengeHash / (1n << 248n), challengeHash % (1n << 248n)],
         ],
       }),
       CompiledContract.withCompiledFileAssets("contracts/build/eduproof"),
@@ -181,18 +207,44 @@ export class MidnightProofProvider implements ProofProvider {
       compiledContract,
       contractAddress: midnightConfig.contractAddress,
       privateStateId: PRIVATE_STATE_ID,
-      initialPrivateState: { studentSk: 0n },
+      initialPrivateState: privateState,
     });
 
-    const result = await found.callTx.proveCredentialPredicate(
-      args.schoolIdHash,
-      args.subject,
-      args.slot,
-      args.op,
-      args.operand,
-      args.credential,
-      args.signature,
-    );
+    // proveCredentialPredicate awaits the whole chain — prove, balance,
+    // submit, then watchForTxData, whose interface contract is to wait
+    // indefinitely. Nothing below it ever gives up on a transaction the
+    // wallet never submitted, and a wallet that declines to relay is
+    // indistinguishable from one that relayed: submitTransaction() returns
+    // void. A publish that has not settled in five minutes has not failed to
+    // *confirm*, it has failed to *happen*, and saying so beats a spinner
+    // that never stops.
+    //
+    // The race only bounds the wait: watchForTxData's own polling loop has no
+    // cancellation path through the SDK and keeps running until the page
+    // goes. A known limit, not something to redesign around here.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      found.callTx.proveCredentialPredicate(
+        args.schoolIdHash,
+        args.subject,
+        args.slot,
+        args.op,
+        args.operand,
+        args.credential,
+      ),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                "The transaction has not appeared on chain after five minutes. " +
+                  "If your wallet never asked you to sign, it never received it.",
+              ),
+            ),
+          PUBLISH_TIMEOUT_MS,
+        );
+      }),
+    ]).finally(() => clearTimeout(timer));
 
     const status = result.public?.status;
     if (status !== "SucceedEntirely") {
@@ -220,17 +272,17 @@ export class MidnightProofProvider implements ProofProvider {
       };
     }
 
-    // Ask the chain rather than assert. The registry the circuit checks
-    // against lives on the contract, so a verifier can confirm the issuer
-    // without trusting this app's own school list — which is the whole point
-    // of putting it on chain.
-    const { chainState, issuerRegistered } = await import("@/lib/midnight/chain");
-    const { schoolIdHash } = await import("@/lib/midnight/encoding");
+    // Ask the chain rather than assert: the verification counter lives on the
+    // contract, so a verifier can see the contract is genuinely in use without
+    // trusting this app's own word for it.
+    //
+    // There is no issuer question to ask any more. The circuit stopped
+    // verifying signatures, so the contract holds no issuer registry — and
+    // reporting "issuer registered" from a registry nothing checks would be
+    // exactly the meaningless green tick lib/issuer-badge.ts exists to avoid.
+    const { chainState } = await import("@/lib/midnight/chain");
 
-    const [state, issuer] = await Promise.all([
-      chainState(),
-      issuerRegistered(schoolIdHash(proof.issuer.schoolId)),
-    ]);
+    const state = await chainState();
 
     // A proof stands on the circuit's verdict. The chain being unreachable
     // makes the on-chain half unknown, not the proof invalid.
@@ -240,8 +292,6 @@ export class MidnightProofProvider implements ProofProvider {
       onChain: state.available
         ? {
             available: true,
-            issuerRegistered: issuer.registered,
-            issuerCount: state.issuerCount,
             proofsVerified: state.proofsVerified?.toString(),
             explorerUrl: explorerContractUrl() ?? undefined,
             explorerTxUrl: state.txHash ? explorerTxUrl(state.txHash) : undefined,

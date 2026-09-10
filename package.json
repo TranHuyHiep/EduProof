@@ -14,7 +14,7 @@
     "check:secrets": "node --env-file-if-exists=.env.local scripts/check-secrets.mjs",
     "contract:build": "node scripts/build-contract.mjs",
     "contract:deploy": "node scripts/deploy-contract.mjs",
-    "contract:register-issuer": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/register-issuer.mjs",
+    "contract:publish": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/publish-proofs.mjs",
     "contract:verify": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/verify-deployment.mjs",
     "wallet:register-dust": "node scripts/register-dust.mjs"
   },
@@ -49,5 +49,8 @@
     "edge >= 91",
     "firefox >= 90",
     "safari >= 15"
-  ]
+  ],
+  "overrides": {
+    "@midnight-ntwrk/onchain-runtime-v3": "3.0.0"
+  }
 }

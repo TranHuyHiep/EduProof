@@ -4,24 +4,41 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Skeleton, Steps } from "@/components/ui";
 import {
-  IconAlert, IconArrowLeft, IconCheck, IconLock, IconPlus, IconTrash, IconX,
+  IconAlert, IconArrowLeft, IconArrowRight, IconCheck, IconLock, IconPlus, IconTrash, IconX,
 } from "@/components/icons";
 import { useStudent } from "@/lib/use-student";
 import { getWalletAddress } from "@/lib/session";
+import { providerName } from "@/lib/midnight/config";
+import { publishErrorMessage } from "@/lib/midnight/errors";
+import { connectWallet, installedWallets } from "@/lib/wallet";
+import { useWallet } from "@/lib/wallet-context";
 import {
   ATTRIBUTES, attributeSpec, contradictions, defaultClaim, evaluateClaim,
-  isDuplicate, operatorPhrase, PRESETS, proofProvider, sentenceOf, valueLabel,
+  isDuplicate, operatorPhrase, PRESETS, proofProvider, proofStore, sentenceOf, valueLabel,
 } from "@/lib/proof";
-import type { ClaimOperator, ClaimRequest, PrivateAttribute } from "@/types";
+import type { ClaimOperator, ClaimRequest, PrivateAttribute, Proof } from "@/types";
+
+// Only midnight's provider publishes; the mock has no chain to reach, so it
+// never leaves "proving". Kept alongside the page, not in lib/proof, since a
+// WalletConnectedAPI is a UI/wallet concern the ProofProvider interface
+// deliberately does not know about — see docs/15-wave-1-smartcontract-call.md.
+type GenerateState =
+  | { stage: "idle" }
+  | { stage: "connecting" }
+  | { stage: "proving" }
+  | { stage: "publishing"; index: number; total: number }
+  /** `proofId` is set only when the proof exists but publishing it failed. */
+  | { stage: "error"; message: string; proofId?: string };
 
 export default function CreateProofPage() {
   const router = useRouter();
   const { student, loading } = useStudent();
+  const { wallet, setWallet } = useWallet();
 
   const [claims, setClaims] = useState<ClaimRequest[]>(() => PRESETS[1].claims);
   const [activePreset, setActivePreset] = useState<string | null>(PRESETS[1].id);
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<GenerateState>({ stage: "idle" });
+  const generating = state.stage !== "idle" && state.stage !== "error";
 
   // Which claims would come back false — worth knowing before spending a proof.
   const outcomes = useMemo(
@@ -73,15 +90,79 @@ export default function CreateProofPage() {
     const owner = getWalletAddress();
     if (!owner) { router.replace("/student/login"); return; }
 
-    setGenerating(true);
-    setError(null);
-    try {
-      const proof = await proofProvider.generateProof({ student, claims, owner });
-      router.push(`/student/proof/${proof.proofId}`);
-    } catch (e) {
-      setError((e as Error).message);
-      setGenerating(false);
+    setState({ stage: "idle" }); // clears a previous error before trying again
+
+    // Publishing needs the real WalletConnectedAPI (balanceUnsealedTransaction,
+    // submitTransaction) — a demo wallet has none, and if the page was
+    // reloaded since connecting, the context has forgotten it too (it is not
+    // persisted — see lib/wallet-context.tsx). Resolved once, up front: mock
+    // never publishes, so it never needs a wallet at all.
+    let walletApi = wallet?.api;
+    if (providerName() === "midnight" && !walletApi) {
+      setState({ stage: "connecting" });
+      try {
+        const wallets = installedWallets();
+        if (wallets.length === 0) {
+          throw new Error("No Midnight wallet extension found. Install Lace to generate a proof.");
+        }
+        const connection = await connectWallet();
+        setWallet(connection);
+        walletApi = connection.api;
+        if (!walletApi) throw new Error("Connected, but no signing API was returned.");
+      } catch (e) {
+        // publishErrorMessage, not (e as Error).message: a wallet extension
+        // can reject with something that is not an Error, and reading
+        // .message off that renders an empty notice — indistinguishable, to
+        // the student, from the button having done nothing.
+        setState({ stage: "error", message: publishErrorMessage(e) });
+        return;
+      }
     }
+
+    setState({ stage: "proving" });
+    let proof: Proof;
+    try {
+      proof = await proofProvider.generateProof({ student, claims, owner });
+    } catch (e) {
+      setState({ stage: "error", message: publishErrorMessage(e) });
+      return;
+    }
+
+    if (providerName() === "midnight" && walletApi) {
+      const api = walletApi;
+      const { MidnightProofProvider } = await import("@/lib/proof/midnight-provider");
+      const provider = new MidnightProofProvider();
+
+      for (let i = 0; i < proof.claims.length; i++) {
+        setState({ stage: "publishing", index: i + 1, total: proof.claims.length });
+        try {
+          const result = await provider.publishProof(student, proof, i, api);
+          proof = {
+            ...proof,
+            claims: proof.claims.map((c, j) => (j === i ? { ...c, publishedTxId: result.txId } : c)),
+          };
+          await proofStore.save(proof);
+        } catch (e) {
+          // Shown here, on the page the student is looking at, rather than
+          // navigating away with it. An earlier version pushed straight to the
+          // proof page on any failure, which discarded the message and left
+          // the button looking like it had done nothing — the publish path
+          // reports which step failed precisely so that it can be read.
+          //
+          // Nothing already published is lost: the proof, with whichever
+          // claims made it on chain, is saved, and the proof page's own
+          // "Publish on chain" button retries exactly the claims that did not.
+          setState({
+            stage: "error",
+            message: publishErrorMessage(e),
+            proofId: proof.proofId,
+          });
+          return;
+        }
+      }
+    }
+
+    router.push(`/student/proof/${proof.proofId}`);
   }
 
   return (
@@ -186,7 +267,23 @@ export default function CreateProofPage() {
           text={`${failing.length === 1 ? "One statement does" : `${failing.length} statements do`} not hold for your record. You can still generate the proof — the verifier will see them marked as not proven.`}
         />
       )}
-      {error && <Notice tone="rose" text={error} />}
+      {state.stage === "error" && (
+        <div className="space-y-2">
+          <Notice tone="rose" text={state.message} />
+          {state.proofId && (
+            // The proof itself was made and saved; only putting it on chain
+            // failed. Offering the way through means a failed publish does not
+            // cost the student the proof.
+            <Link
+              href={`/student/proof/${state.proofId}`}
+              className="focusable inline-flex items-center gap-1.5 text-sm text-ink-soft underline decoration-rule underline-offset-4 transition-colors hover:text-seal-600"
+            >
+              The proof was created — open it to retry publishing
+              <IconArrowRight size={0.95} />
+            </Link>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <Link
@@ -201,7 +298,7 @@ export default function CreateProofPage() {
           disabled={generating || claims.length === 0}
           className={generating ? "working" : ""}
         >
-          {generating ? "Generating…" : "Generate proof"}
+          {generateButtonLabel(state, providerName() === "midnight")}
         </Button>
       </div>
     </div>
@@ -359,4 +456,17 @@ function Notice({ tone, text }: { tone: "amber" | "rose"; text: string }) {
       <span>{text}</span>
     </div>
   );
+}
+
+function generateButtonLabel(state: GenerateState, isMidnight: boolean): string {
+  switch (state.stage) {
+    case "connecting":
+      return "Connecting to your wallet…";
+    case "proving":
+      return "Proving…";
+    case "publishing":
+      return `Publishing ${state.index} of ${state.total}…`;
+    default:
+      return isMidnight ? "Generate & publish on chain" : "Generate proof";
+  }
 }

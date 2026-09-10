@@ -312,18 +312,37 @@ export async function openFundedWallet() {
     );
   }
 
-  if (dust === 0n) {
-    // Registered, and the chain has the DUST — but the local dust wallet has
-    // not caught up, and the fee balancer spends from the LOCAL view. Without
-    // waiting here the deploy dies at the last step with "Insufficient Funds:
-    // could not balance dust", naming nothing.
+  // Whether to wait is decided by the SYNC, not by the balance.
+  //
+  // This used to read `if (dust === 0n)`, which was right while every run
+  // started from genesis: no DUST meant not caught up. Restoring from a
+  // checkpoint broke that reasoning. A restored wallet reports its saved
+  // balance immediately, so `dust > 0n` skipped the wait entirely and the fee
+  // balancer built a spend proof against a snapshot that was days behind the
+  // chain. The node rejected it with `Custom error: 170`
+  // (InvalidDustSpendProof) — see docs/22-lessons.md §6, where this was the
+  // last unverified hypothesis.
+  //
+  // `isStrictlyComplete()` is the question that was always meant: has the
+  // local dust view caught up with the chain? A balance says nothing about
+  // that either way.
+  const dustSynced =
+    (await Rx.firstValueFrom(walletProvider.wallet.state()))
+      .dust.progress?.isStrictlyComplete?.() === true;
+
+  if (!dustSynced) {
+    // Registered, and the chain may already have the DUST — but the local dust
+    // wallet has not caught up, and the fee balancer spends from the LOCAL
+    // view. Without waiting here the deploy dies at the last step, either with
+    // "Insufficient Funds: could not balance dust" or with Custom error 170.
     //
     // This is the slow part: the dust wallet syncs from genesis, which on
     // Preprod is well over a million indices. Show progress, because a silent
     // wait of this length is indistinguishable from a hang.
-    console.log("\nDUST reads 0 locally, though this wallet's NIGHT is registered.");
-    console.log("Waiting for the dust wallet to sync — the fee balancer spends");
-    console.log("from this view, not the chain's.\n");
+    console.log(`\nThe local dust view has not caught up (DUST reads ${dust}).`);
+    console.log("Waiting for the sync to complete — the fee balancer spends");
+    console.log("from this view, not the chain's, and a spend proof built on");
+    console.log("a partial view is rejected by the node.\n");
 
     await new Promise((resolve, reject) => {
       const started = Date.now();
