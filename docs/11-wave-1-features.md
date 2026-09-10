@@ -52,15 +52,26 @@ proveCredentialPredicate(
 ) -> Boolean
 ```
 
-Circuit từ chối trả lời nếu thiếu một trong ba:
+Circuit từ chối trả lời nếu thiếu một trong hai:
 
-1. **Chữ ký nhà trường hợp lệ** — Schnorr trên JubJub, đối chiếu khoá trên ledger.
-2. **Người gọi đúng là chủ credential** — biết bí mật đứng sau subject commitment.
-   Không có bước này, credential rò rỉ dùng được cho người khác.
-3. **Credential tự khai đúng chủ và đúng trường** — slot 0 và slot 1 khớp với
-   mệnh đề đang xét, nên không tráo được sau khi ký.
+1. **Người gọi đúng là chủ credential** — biết bí mật đứng sau subject
+   commitment. Không có bước này, credential rò rỉ dùng được cho người khác.
+2. **Credential tự khai đúng chủ và đúng trường** — slot 0 và slot 1 khớp với
+   mệnh đề đang xét.
 
 Chỉ giá trị Boolean đi ra.
+
+> **Từng có điều kiện thứ ba, và nó đã mất.** Bản trước kiểm tra **chữ ký
+> Schnorr của nhà trường** đối chiếu khoá trên ledger. Contract viết lại
+> ngày 2026-09-08 theo khuôn calculator đã bỏ nó, nên hiện tại:
+>
+> **Bất kỳ ai cũng tự khai được credential** — bịa vector GPA 400 thì circuit
+> vẫn chứng minh "GPA ≥ 3.5". Proof đúng về toán và vẫn **giấu giá trị**;
+> nó chỉ không chứng minh được **nguồn gốc**.
+>
+> Ghi lại bằng một test đang pass trong `contracts/tests/circuit.test.ts`
+> (*"what this circuit does NOT prove"*). Khôi phục là **W2.0**, việc đầu
+> tiên của Wave 2 — [40-wave-2-features.md](40-wave-2-features.md).
 
 **Đổi giữa mock và circuit thật bằng một biến môi trường:**
 
@@ -79,6 +90,11 @@ Cùng một sự thật, hai dạng, vì circuit không có bộ phân tích JSO
 - **JubJub Schnorr trên vector 16 trường** — cho circuit.
 
 Cả hai dẫn xuất từ **một** secret, nên trường vẫn chỉ quản một khoá.
+
+Nhà trường **vẫn ký cả hai** và vẫn publish khoá circuit qua GraphQL: đó là
+đặc tả công khai của vendor ([30-school-vendor-contract.md](30-school-vendor-contract.md)),
+không đổi vì phía EduProof đổi. Cái khác là **circuit thôi kiểm tra chữ ký
+JubJub** — xem ghi chú ở mục circuit phía trên.
 
 GPA lưu ×100 (3.72 → 372) vì circuit không có số thực.
 

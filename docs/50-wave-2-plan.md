@@ -6,11 +6,32 @@ File này trả lời: làm gì trước, ai làm, xong khi nào biết. Mục t
 kỹ thuật đầy đủ đã có ở [40-wave-2-features.md](40-wave-2-features.md) —
 không lặp lại ở đây.
 
-**Phạm vi đã chốt:** chỉ **W2.1** (xác thực quyền sở hữu ví) và **W2.1b**
-(gửi proof như transaction thật). Không đụng W2.2–W2.7 trong Wave 2 này —
-để dành, đúng chiến lược "tiến bộ từng Wave" thể lệ đòi hỏi. Nếu còn dư thời
-gian ở tuần 3, ứng viên dự phòng duy nhất là **W2.7** (`ChainProofStore`),
-vì nó nhỏ và không phụ thuộc gì vào hai mục chính.
+> ## ⚠️ Phạm vi đã đổi — 2026-09-10
+>
+> Kế hoạch dưới đây viết trước khi Wave 1 vượt phạm vi. Hai điều đã khác:
+>
+> **W2.1b đã xong** trong Wave 1 — proof lên chain thật, `proofsVerified = 4`
+> ([15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md)). Mọi
+> mục về W2.1b dưới đây coi như đã hoàn thành.
+>
+> **Xuất hiện W2.0 — khôi phục xác thực issuer.** Contract viết lại theo
+> khuôn calculator đã bỏ xác thực chữ ký Schnorr, nên hiện **bất kỳ ai cũng
+> tự khai được credential**. Đây là lỗ hổng bảo mật, không phải tính năng
+> thiếu — và nó phải là việc đầu tiên của Wave 2.
+>
+> **Phạm vi mới:** **W2.0** (khôi phục xác thực issuer) + **W2.1** (xác thực
+> quyền sở hữu ví). Ngân sách thời gian gần như không đổi, vì W2.1b đã trả
+> xong.
+>
+> Ưu tiên W2.0 trước W2.1 vì hai lý do: nó vá lỗ hổng đang tồn tại chứ không
+> thêm cái mới, và chủ đề Wave 2 là *"bảo mật và tính đúng đắn"* — nộp bài
+> với một circuit ai cũng qua mặt được thì phản chủ đề.
+
+**Phạm vi cũ (đã thay bằng phần trên):** chỉ **W2.1** và **W2.1b**. Không
+đụng W2.2–W2.7 trong Wave 2 này — để dành, đúng chiến lược "tiến bộ từng
+Wave" thể lệ đòi hỏi. Nếu còn dư thời gian ở tuần 3, ứng viên dự phòng duy
+nhất là **W2.7** (`ChainProofStore`), vì nó nhỏ và không phụ thuộc gì vào
+hai mục chính.
 
 ---
 

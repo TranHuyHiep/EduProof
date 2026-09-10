@@ -13,12 +13,21 @@ Link và endpoint: [23-references.md](23-references.md).
 
 | Bước | Tình trạng |
 |---|---|
-| 0 — Deploy | ✅ `89975419a1a887b6f4d74d91…` |
+| 0 — Deploy | ✅ `5d96aa1c4f2b77afc3603cb0…` (contract viết lại, 09/09) |
 | 1 — Đặt biến env | ✅ indexer xác nhận |
-| 2 — Đăng ký issuer | ✅ `issuerCount` 0 → 1 |
+| 2 — ~~Đăng ký issuer~~ | ⛔ **bước này không còn tồn tại** — xem dưới |
 | 3 — Chạy thử end-to-end | ✅ [13-acceptance.md](13-acceptance.md) |
 | 4 — Cập nhật tài liệu | ✅ |
-| 5 — Chốt cổng chất lượng | ✅ 251 test, boundaries, build, tsc |
+| 5 — Chốt cổng chất lượng | ✅ 299 test, boundaries, build, tsc |
+| 6 — Gọi contract thật | ✅ `proofsVerified = 4` — [15-…](15-wave-1-smartcontract-call.md) |
+
+> **Địa chỉ đã đổi.** Contract cũ `89975419…` bị bỏ hoang khi contract được
+> viết lại ngày 2026-09-08. Nó vẫn nằm trên chain nhưng có hình dạng khác
+> (thừa `issuers` và `registerIssuer`), nên code hiện tại **không nói chuyện
+> được với nó** — triệu chứng:
+> *"Following operations: proveCredentialPredicate, are undefined or have
+> mismatched verifier keys"*. Nếu gặp lỗi đó, kiểm tra
+> `NEXT_PUBLIC_CONTRACT_ADDRESS` trước tiên.
 
 Kết quả đo được: [13-acceptance.md](13-acceptance.md).
 
@@ -29,17 +38,26 @@ Chỉ còn việc của chủ dự án: repo public + topic `midnightntwrk`, sli
 ## Bước 0 — Deploy ✅
 
 ```
-contract  89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
-tx        0039095faf9e17c65fe65e86ffac18a08a8c0a331d9755a9b6bd81ccf6da5cae64
+contract  5d96aa1c4f2b77afc3603cb028f142da83ea4b027f1802c0b4560ca11b7ef42b
+tx        a9f455ba02b9fa575de1daf2a8e169df0d1a884a7551830fe11ac74e72ff078c
+block     2475056  (2026-09-09)
 ```
 
-Mất 158 phút, gần hết là sync ví. Bản thân việc deploy dưới một phút.
+Bản thân việc deploy dưới một phút; phần còn lại là sync ví.
+
+**Lần deploy đầu của contract này mất 3 tiếng rồi hỏng** vì
+`deploy-contract.mjs` khi đó chưa dùng checkpoint — nó tự mở ví thay vì gọi
+`openFundedWallet()`, nên sync lại từ genesis mỗi lần và không lưu tiến độ.
+Đã sửa (commit `d21dc64`); giờ ví khôi phục trong khoảng một phút.
+
+Lần deploy trước đó (contract cũ `89975419…`, 29/08) mất 158 phút vì cùng
+lý do.
 
 ## Bước 1 — Biến môi trường ✅
 
 ```bash
 NEXT_PUBLIC_PROOF_PROVIDER=midnight
-NEXT_PUBLIC_CONTRACT_ADDRESS=89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775e4524f8a0b729
+NEXT_PUBLIC_CONTRACT_ADDRESS=5d96aa1c4f2b77afc3603cb028f142da83ea4b027f1802c0b4560ca11b7ef42b
 ```
 
 `npm run contract:verify` báo *"indexer confirms a contract at this address
@@ -50,37 +68,24 @@ NEXT_PUBLIC_CONTRACT_ADDRESS=89975419a1a887b6f4d74d91e4c857ff3256c966f2c4fb77775
 
 ---
 
-## Bước 2 — Đăng ký khoá trường lên chain ⚠️
+## ~~Bước 2 — Đăng ký khoá trường lên chain~~ ⛔ ĐÃ BỎ
 
-**Không được bỏ qua.** Contract deploy xong có `issuers` **rỗng**, và hệ quả
-không dừng ở hiển thị:
+**Bước này không còn tồn tại.** `npm run contract:register-issuer` đã bị xoá
+cùng circuit `registerIssuer`.
 
-- `proveCredentialPredicate` từ chối mọi proof với *"unknown issuer"*
-- Trang verify luôn hiện *Issuer on chain: not registered*
+Contract viết lại ngày 2026-09-08 bỏ xác thực chữ ký Schnorr, nên `issuers`
+registry không còn ai đọc. Giữ một Map khoá mà không circuit nào kiểm tra sẽ
+khiến ledger **trông như** có xác thực trường trong khi không có — nên nó bị
+bỏ hẳn.
 
-```bash
-npm run contract:register-issuer
-```
+Hệ quả với người vận hành: **deploy xong là dùng được ngay**, không có bước
+đăng ký nào ở giữa.
 
-Script gọi circuit `registerIssuer` qua transaction thật, hỏi xác nhận trước
-(gõ `register`), và in link explorer của giao dịch.
+Hệ quả với bảo mật: **bất kỳ ai cũng tự khai được credential**. Đây là món
+nợ **W2.0** của Wave 2 — [40-wave-2-features.md](40-wave-2-features.md). Khi
+khôi phục, bước này quay lại cùng registry.
 
-Khoá lấy từ `circuitPublicKey()` — **cùng khoá** trường dùng để ký, không
-truyền tay. Script dừng ngay nếu `SCHOOL_SIGNING_KEY` chưa có trong
-`.env.local`: thiếu nó thì một khoá tạm sẽ được sinh ra và ghi lên chain, nơi
-không lấy lại được, và mọi proof sau đó đều hỏng vì contract giữ một khoá
-không ký gì cả.
-
-**Kiểm chứng — so với baseline đo trước khi đăng ký:**
-
-| Đọc từ chain | Trước | Sau (phải là) |
-|---|---|---|
-| `issuerCount` | 0 | **1** |
-| `issuerRegistered(3226085635)` | `false` | **`true`** |
-
-`3226085635` là `hashToField("hanoi-university")` — cùng giá trị mà app tra
-cứu và circuit đọc từ credential, có test khoá
-(`tests/issuer-identity.test.ts`).
+---
 
 ```bash
 npm run contract:verify

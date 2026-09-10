@@ -10,6 +10,65 @@ Chủ đề: **Bảo mật và tính đúng đắn.** Wave 1 dựng nền; Wave 
 
 ---
 
+## ⚠️ Phạm vi đã đổi — đọc trước (cập nhật 2026-09-10)
+
+Wave 1 chạy quá phạm vi rồi lùi lại một bước. Hai thay đổi phải biết trước
+khi đọc phần còn lại:
+
+**1. W2.1b đã XONG trong Wave 1.** Proof đã gửi lên chain như transaction
+thật, `proofsVerified = 4` trên contract
+`5d96aa1c4f2b77afc3603cb028f142da83ea4b027f1802c0b4560ca11b7ef42b`. Biên bản
+kèm số đo: [15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md).
+
+**2. Xác thực issuer đã MẤT.** Contract được viết lại theo khuôn calculator
+và bỏ xác thực chữ ký Schnorr. Hiện tại **bất kỳ ai cũng tự khai được
+credential** — proof vẫn giấu giá trị, nhưng không chứng minh được trường
+nào đứng sau.
+
+Nên trọng tâm Wave 2 **đảo lại**: không phải thêm tính năng mới, mà **trả
+lại tính chất đã mất**. Xem W2.0 ngay dưới.
+
+---
+
+## W2.0 Khôi phục xác thực issuer ⭐⭐ ưu tiên cao nhất
+
+Không phải tính năng mới — là **món nợ Wave 1 để lại**, và là lỗ hổng bảo
+mật lớn nhất hiện tại.
+
+Circuit hiện chỉ kiểm tra hai điều: người gọi giữ secret sau `subject`, và
+credential khai đúng trường. Nó **không** kiểm tra trường có thật sự cấp
+credential đó không.
+
+```
+Hien tai:  sinh vien bia vector GPA 400  ->  circuit chung minh "GPA >= 3.5"
+Can co  :  circuit tu choi vi khong co chu ky truong
+```
+
+Đã có sẵn một test đang pass ghi lại chính tính chất này —
+`contracts/tests/circuit.test.ts`, mục *"what this circuit does NOT prove"*.
+**Khôi phục xong thì test đó phải đỏ** và được viết lại; đó là tiêu chí
+nghiệm thu rõ ràng nhất.
+
+### Hai đường
+
+| | Cách | Điều kiện |
+|---|---|---|
+| A | `jubjubSchnorrVerify` builtin | Cần **ledger 9** (language 0.26 / toolchain 0.34.0). Preprod đang ledger 8 — chờ Midnight |
+| B | Viết tay Schnorr như Wave 1 | Chạy được ngay trên ledger 8. Code cũ còn trong git (`contracts/src/schnorr.compact`, commit trước `954f013`) |
+
+Đường B khôi phục được **ngay**, và phần TypeScript vẫn còn nguyên:
+`lib/midnight/schnorr.ts` được giữ lại có chủ ý, trường vẫn ký credential và
+vẫn publish khoá qua GraphQL — chỉ EduProof thôi nhìn chữ ký.
+
+### Kèm theo khi khôi phục
+
+- `issuers` registry trên chain (đã bỏ cùng Schnorr)
+- Preflight so khoá on-chain với khoá trường đang ký — bẫy đã tốn một ngày,
+  xem [22-lessons.md](22-lessons.md) mục 10
+- `issuerBadge()` lấy lại đường trả `proven`
+
+---
+
 ## W2.1 Xác thực quyền sở hữu ví ⭐ trọng tâm
 
 Wave 1 mới chỉ *kết nối* ví. Wave 2 **chứng minh quyền sở hữu**:
@@ -18,7 +77,18 @@ Wave 1 mới chỉ *kết nối* ví. Wave 2 **chứng minh quyền sở hữu**
 - Ràng buộc credential vào **ví**, không phải vào thiết bị
 - Chặn kịch bản trộm credential rồi dùng lại
 
-## W2.1b Gửi proof như transaction thật ⭐
+## W2.1b Gửi proof như transaction thật ✅ ĐÃ XONG (trong Wave 1)
+
+> **Hoàn thành 2026-09-10, sớm hơn kế hoạch một Wave.** `proofsVerified = 4`
+> trên chain. Biên bản, số đo và bảy lớp bẫy đã gỡ:
+> [15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md).
+>
+> Phần mô tả dưới đây giữ lại làm bối cảnh — nó cũng ghi đúng lý do vì sao
+> việc này đáng làm sớm. Một chi tiết đã lỗi thời: đoạn nói `proofsVerified`
+> "mãi mãi = 0" không còn đúng nữa.
+>
+> Cái chưa lường được lúc lập kế hoạch: đưa được lên chain lại **đánh đổi**
+> bằng xác thực issuer — xem W2.0.
 
 Không phụ thuộc vào W2.1 (ownership-challenge). Đây là hai lớp độc lập:
 ownership credential đã được circuit tự chứng minh qua
