@@ -105,6 +105,20 @@ redeploy, not a restart.
   > Trên Vercel phải **để trống** biến này. `lib/midnight/config.ts` sẽ tự
   > dùng hosted server, và nó trả CORS cho đúng origin của deployment (đã
   > kiểm chứng 10/09/2026: `access-control-allow-origin` khớp origin gửi lên).
+
+  **Tự host proof server rồi trỏ Vercel vào có được không?** Không, trừ khi
+  dựng HTTPS cho nó. Vercel phục vụ qua **HTTPS**, và trình duyệt cấm trang
+  HTTPS gọi tài nguyên **HTTP** — *mixed content*. Nó chặn **trước khi**
+  request rời máy, nên header CORS không cứu được: đã đo, proof server tự
+  host trả `access-control-allow-origin` đúng origin Vercel mà trình duyệt
+  vẫn không gửi. Triệu chứng y hệt: `Failed to fetch`.
+
+  Muốn tự host thì phải có **tên miền** (Let's Encrypt không cấp cert cho IP
+  trần) và một reverse proxy TLS đứng trước cổng 6300.
+
+  Và điều đáng nói nhất: **tự host không riêng tư hơn** trong trường hợp này.
+  Proof server nào cũng nhìn thấy witness. Tự host chỉ đổi *ai* nhìn thấy —
+  từ Midnight sang chủ server — chứ không làm witness bớt lộ.
 - **A genuinely separate school.** The `/api/school/graphql` route stands in for
   an external institution inside the same deployment. Honest, but a
   single-process arrangement — Option B is the architecture as designed.
