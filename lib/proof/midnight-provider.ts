@@ -156,11 +156,27 @@ export class MidnightProofProvider implements ProofProvider {
       new BrowserZkConfigProvider();
 
     const PRIVATE_STATE_ID = "eduproof-publish";
+
+    // The student's REAL secret, not a placeholder.
+    //
+    // The circuit's first assertion is
+    // `subjectCommitment(studentSecretKey()) == subject`, and `subject` was
+    // derived from this same secret when the proving session opened. Seeding
+    // the private state with 0n instead made the witness hand the circuit a
+    // different key, so the commitment never matched and every publish died
+    // on chain with "failed assert: not the credential holder".
+    //
+    // The local Simulator could not catch it: openProvingSession() passes the
+    // real secret to Simulator.create() directly, so only the on-chain path
+    // reads the private-state provider at all.
+    const { studentSecretKey } = await import("@/lib/midnight/prover");
+    const privateState = { studentSk: studentSecretKey() };
+
     const providers = {
       publicDataProvider: browserPublicDataProvider(),
       proofProvider: httpClientProofProvider(midnightConfig.proofServer, zkConfigProvider),
       zkConfigProvider,
-      privateStateProvider: inMemoryPrivateStateProvider(PRIVATE_STATE_ID, { studentSk: 0n }),
+      privateStateProvider: inMemoryPrivateStateProvider(PRIVATE_STATE_ID, privateState),
       walletProvider: wallet,
       midnightProvider: wallet,
     };
@@ -191,7 +207,7 @@ export class MidnightProofProvider implements ProofProvider {
       compiledContract,
       contractAddress: midnightConfig.contractAddress,
       privateStateId: PRIVATE_STATE_ID,
-      initialPrivateState: { studentSk: 0n },
+      initialPrivateState: privateState,
     });
 
     // proveCredentialPredicate awaits the whole chain — prove, balance,
