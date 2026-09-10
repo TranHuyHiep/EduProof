@@ -17,10 +17,11 @@ hiện popup ký, và transaction lên Preprod.
 |---|---|
 | Contract | `5d96aa1c4f2b77afc3603cb028f142da83ea4b027f1802c0b4560ca11b7ef42b` |
 | Deploy | block 2475056 · 2026-09-09 |
-| Transaction gần nhất | `2bc9610ea68480b382291584b372abe89c07b214d7e3124c59f75ba04fb7d79b` · block 2488439 |
-| **`proofsVerified`** | **4** |
+| Transaction gần nhất | `a1abe8092f7dbc2fdf180a1604c469328034ba33a3a98fc582debc6cf62fba76` · block 2489013 |
+| **`proofsVerified`** | **7** (2026-09-10, tăng theo mỗi publish) |
 
-Con số 4 đọc thẳng từ indexer, không qua UI của app. Câu hỏi *"đếm được bao
+Con số này đọc thẳng từ indexer, không qua UI của app, và **tăng mỗi lần**
+có người bấm publish — nên kiểm chứng lại trước khi trích dẫn ở đâu đó. Câu hỏi *"đếm được bao
 nhiêu proof đã xác minh trên chain?"* — trước đây phải trả lời "không đếm
 được gì" — giờ có câu trả lời kiểm chứng độc lập được.
 

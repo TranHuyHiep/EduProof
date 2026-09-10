@@ -20,7 +20,7 @@ thật như transaction, không còn dừng ở Simulator cục bộ.
 | | |
 |---|---|
 | Contract | `5d96aa1c4f2b77afc3603cb028f142da83ea4b027f1802c0b4560ca11b7ef42b` |
-| `proofsVerified` trên chain | **4** |
+| `proofsVerified` trên chain | **7** (2026-09-10) |
 
 Biên bản kèm số đo: [15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md).
 
@@ -42,7 +42,7 @@ Không còn việc code nào bắt buộc cho Wave 1.
 |---|---|---|
 | 1 — Mock UI | 3 vai trò, claim động, link chia sẻ | 10 trang + 1 API route |
 | 2 — Midnight | Circuit Compact, ràng buộc chủ sở hữu | 36 test circuit, đã mutation-test |
-| 4 — Lên chain | Gọi contract thật từ trình duyệt qua ví Lace | `proofsVerified = 4`, đọc từ indexer |
+| 4 — Lên chain | Gọi contract thật từ trình duyệt qua ví Lace | `proofsVerified` (đang tăng dần theo mỗi lần publish), đọc từ indexer |
 | 3 — Đóng gói | Docker, Vercel, tài liệu | image 338 MB chạy được, healthcheck xanh |
 
 Cổng kiểm tra — chạy `npm test && npm run check:boundaries && npm run build`:

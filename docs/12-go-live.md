@@ -19,7 +19,7 @@ Link và endpoint: [23-references.md](23-references.md).
 | 3 — Chạy thử end-to-end | ✅ [13-acceptance.md](13-acceptance.md) |
 | 4 — Cập nhật tài liệu | ✅ |
 | 5 — Chốt cổng chất lượng | ✅ 299 test, boundaries, build, tsc |
-| 6 — Gọi contract thật | ✅ `proofsVerified = 4` — [15-…](15-wave-1-smartcontract-call.md) |
+| 6 — Gọi contract thật | ✅ `proofsVerified` (đang tăng dần theo mỗi lần publish) — [15-…](15-wave-1-smartcontract-call.md) |
 
 > **Địa chỉ đã đổi.** Contract cũ `89975419…` bị bỏ hoang khi contract được
 > viết lại ngày 2026-09-08. Nó vẫn nằm trên chain nhưng có hình dạng khác

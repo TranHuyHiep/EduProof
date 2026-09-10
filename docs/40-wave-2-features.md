@@ -16,7 +16,7 @@ Wave 1 chạy quá phạm vi rồi lùi lại một bước. Hai thay đổi ph�
 khi đọc phần còn lại:
 
 **1. W2.1b đã XONG trong Wave 1.** Proof đã gửi lên chain như transaction
-thật, `proofsVerified = 4` trên contract
+thật, `proofsVerified` (đang tăng dần theo mỗi lần publish) trên contract
 `5d96aa1c4f2b77afc3603cb028f142da83ea4b027f1802c0b4560ca11b7ef42b`. Biên bản
 kèm số đo: [15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md).
 
@@ -79,7 +79,7 @@ Wave 1 mới chỉ *kết nối* ví. Wave 2 **chứng minh quyền sở hữu**
 
 ## W2.1b Gửi proof như transaction thật ✅ ĐÃ XONG (trong Wave 1)
 
-> **Hoàn thành 2026-09-10, sớm hơn kế hoạch một Wave.** `proofsVerified = 4`
+> **Hoàn thành 2026-09-10, sớm hơn kế hoạch một Wave.** `proofsVerified` (đang tăng dần theo mỗi lần publish)
 > trên chain. Biên bản, số đo và bảy lớp bẫy đã gỡ:
 > [15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md).
 >

@@ -10,7 +10,7 @@ không lặp lại ở đây.
 >
 > Kế hoạch dưới đây viết trước khi Wave 1 vượt phạm vi. Hai điều đã khác:
 >
-> **W2.1b đã xong** trong Wave 1 — proof lên chain thật, `proofsVerified = 4`
+> **W2.1b đã xong** trong Wave 1 — proof lên chain thật, `proofsVerified` (đang tăng dần theo mỗi lần publish)
 > ([15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md)). Mọi
 > mục về W2.1b dưới đây coi như đã hoàn thành.
 >

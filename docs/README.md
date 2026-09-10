@@ -24,7 +24,8 @@ thêm file mới không phải đánh số lại cả thư mục.
 | 11 | [11-wave-1-features.md](11-wave-1-features.md) | Hệ thống hiện làm được gì |
 | 12 | [12-go-live.md](12-go-live.md) | Đưa lên preprod — làm theo từng bước, có cách kiểm chứng |
 | 13 | [13-acceptance.md](13-acceptance.md) | Biên bản nghiệm thu — đã chạy thử những gì, kết quả đo được |
-| 15 | [15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md) | **Kết quả:** gọi contract thật từ trình duyệt — `proofsVerified = 4`, và cái giá phải trả |
+| 15 | [15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md) | **Kết quả:** gọi contract thật từ trình duyệt, và cái giá phải trả |
+| 16 | [16-wave-submission.md](16-wave-submission.md) | Text nộp bài "Updates in this Wave" — tiếng Anh, dán thẳng vào form |
 
 ## 2x — Nền tảng kỹ thuật
 
