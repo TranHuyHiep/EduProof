@@ -2,7 +2,7 @@
 
 **File này trả lời đúng một câu hỏi: bây giờ phải làm gì tiếp theo.**
 
-Cập nhật: 2026-08-31
+Cập nhật: 2026-09-10
 
 ---
 
@@ -14,7 +14,23 @@ Cập nhật: 2026-08-31
 | 2 | Slide deck | chủ dự án | 10% rubric |
 | 3 | Video demo 3–5 phút | chủ dự án | cùng 10% đó |
 
-**Phần code đã xong hết.** Contract sống trên preprod, issuer đã đăng ký, đã chạy thử toàn bộ trên UI — [13-acceptance.md](13-acceptance.md).
+**Phần code đã xong hết**, và đã vượt phạm vi dự kiến: proof giờ lên chain
+thật như transaction, không còn dừng ở Simulator cục bộ.
+
+| | |
+|---|---|
+| Contract | `5d96aa1c4f2b77afc3603cb028f142da83ea4b027f1802c0b4560ca11b7ef42b` |
+| `proofsVerified` trên chain | **4** |
+
+Biên bản kèm số đo: [15-wave-1-smartcontract-call.md](15-wave-1-smartcontract-call.md).
+
+> **Đánh đổi phải nêu khi nộp bài.** Contract được viết lại theo khuôn
+> calculator và **bỏ xác thực chữ ký của trường** — hiện bất kỳ ai cũng tự
+> khai được credential. Proof vẫn giấu giá trị (tính chất privacy còn
+> nguyên), nhưng không chứng minh được nguồn gốc. Đây là việc đầu tiên của
+> Wave 2: **W2.0** trong [40-wave-2-features.md](40-wave-2-features.md).
+>
+> Nói thẳng điều này trong slide/video tốt hơn để giám khảo tự phát hiện.
 
 Không còn việc code nào bắt buộc cho Wave 1.
 
@@ -25,17 +41,24 @@ Không còn việc code nào bắt buộc cho Wave 1.
 | Phase | Nội dung | Kiểm chứng |
 |---|---|---|
 | 1 — Mock UI | 3 vai trò, claim động, link chia sẻ | 10 trang + 1 API route |
-| 2 — Midnight | Circuit Compact, chữ ký thật, ràng buộc chủ sở hữu | 40 test circuit, đã mutation-test |
+| 2 — Midnight | Circuit Compact, ràng buộc chủ sở hữu | 36 test circuit, đã mutation-test |
+| 4 — Lên chain | Gọi contract thật từ trình duyệt qua ví Lace | `proofsVerified = 4`, đọc từ indexer |
 | 3 — Đóng gói | Docker, Vercel, tài liệu | image 338 MB chạy được, healthcheck xanh |
 
 Cổng kiểm tra — chạy `npm test && npm run check:boundaries && npm run build`:
 
 ```
-npm test                  262 test / 17 file
+npm test                  299 test / 23 file
 npm run check:boundaries  4/4 luật kiến trúc
-npm run build             15 route, không warning
+npm run build             không warning
 npx tsc --noEmit          sạch
 ```
+
+> **Đã biết: một test không ổn định.** Đỏ khoảng 2/10 lần chạy, và chưa xác
+> định được là test nào — mười lần chạy lại liên tiếp (kể cả cố ý chạy song
+> song hai suite để tạo tranh chấp) đều xanh 299/299, nên chưa bắt được nó
+> in ra tên. Ghi lại thay vì lờ đi. Nếu gặp, chụp lại output trước khi chạy
+> lại — đó là dữ liệu duy nhất còn thiếu.
 
 **Cửa kỹ thuật của Buildathon đã qua:** phải có ít nhất một Compact contract
 compile thành công, nếu không bị loại thẳng.

@@ -610,6 +610,16 @@ thứ không phải `Error`, khi đó `.message` là `undefined` và alert hiệ
 
 ## 10. Test tự sinh khoá thì không bao giờ bắt được khoá lệch
 
+> **Bối cảnh lịch sử (2026-09-10).** Contract viết lại đã bỏ xác thực chữ ký
+> Schnorr, nên `registerIssuer`, `issuers` registry và
+> `npm run contract:register-issuer` **không còn tồn tại** — các lệnh nhắc
+> tới chúng dưới đây không chạy được nữa.
+>
+> Giữ lại nguyên văn vì bài học thì còn: **khoá đăng ký và khoá đang ký lệch
+> nhau là một lớp lỗi mà test tự sinh khoá không thể thấy.** Khi khôi phục
+> xác thực issuer (W2.0 của Wave 2), đọc lại mục này trước khi viết test.
+
+
 Lớp thứ bảy, và là lớp đắt nhất — vì nó **không phải bug code**. Sau khi gỡ
 xong sáu lớp ở mục 9, circuit chạy thật trên preprod và trả về:
 
