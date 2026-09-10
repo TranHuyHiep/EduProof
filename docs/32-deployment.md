@@ -92,6 +92,19 @@ redeploy, not a restart.
   put it. The app uses the hosted one instead
   (`proof-server.preprod.midnight.network`), which the browser can reach
   directly because it answers with permissive CORS.
+
+  > ⚠️ **Đừng copy `NEXT_PUBLIC_PROOF_SERVER` từ `.env.local` lên Vercel.**
+  > Chạy local thì biến đó là `http://localhost:6300`, và `localhost` được
+  > **trình duyệt người dùng** hiểu — tức máy của họ, nơi không có proof
+  > server. Triệu chứng:
+  >
+  > ```
+  > 'prove' returned an error: TypeError: Failed to fetch
+  > ```
+  >
+  > Trên Vercel phải **để trống** biến này. `lib/midnight/config.ts` sẽ tự
+  > dùng hosted server, và nó trả CORS cho đúng origin của deployment (đã
+  > kiểm chứng 10/09/2026: `access-control-allow-origin` khớp origin gửi lên).
 - **A genuinely separate school.** The `/api/school/graphql` route stands in for
   an external institution inside the same deployment. Honest, but a
   single-process arrangement — Option B is the architecture as designed.
