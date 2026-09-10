@@ -119,6 +119,69 @@ redeploy, not a restart.
   Và điều đáng nói nhất: **tự host không riêng tư hơn** trong trường hợp này.
   Proof server nào cũng nhìn thấy witness. Tự host chỉ đổi *ai* nhìn thấy —
   từ Midnight sang chủ server — chứ không làm witness bớt lộ.
+
+### Nhưng hosted server KHÔNG chịu được request proof thật
+
+Đo ngày 10/09/2026, và đây là lý do dự án này tự host:
+
+```
+POST /prove  body rong    -> 400  (co access-control-allow-origin)
+POST /prove  body 300KB   -> 403  (KHONG co header CORS)
+                              server: awselb/2.0
+```
+
+403 đến từ **AWS Elastic Load Balancer** của Midnight, không phải proof
+server. Nó xảy ra **cả khi không gửi Origin**, nên không phải vấn đề CORS —
+nhưng response 403 không kèm header CORS, nên trình duyệt báo:
+
+```
+No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
+
+Thông báo đó **gây hiểu nhầm**: chặn là do rate limit theo IP, không phải
+CORS. Dấu hiệu nhận ra: cùng một body lúc 400 lúc 403, và sau vài request thì
+403 liên tục. Proof server chạy local nhận đúng payload đó bình thường.
+
+### Tự host: Caddy + sslip.io, không cần mua domain
+
+`sslip.io` phân giải `<ip-gach-noi>.sslip.io` về chính IP đó, nên Let's
+Encrypt cấp được cert mà không cần tên miền riêng.
+
+```bash
+# 1. Cai Caddy (Debian/Ubuntu)
+apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+  | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+  > /etc/apt/sources.list.d/caddy-stable.list
+apt-get update && apt-get install -y caddy
+
+# 2. /etc/caddy/Caddyfile — thay IP cho dung
+#    <ip-gach-noi>.sslip.io { reverse_proxy localhost:6300 { ... } }
+
+# 3. systemctl enable --now caddy && systemctl reload caddy
+```
+
+Hai chi tiết dễ vấp:
+
+- **Phải `systemctl reload caddy` sau khi sửa Caddyfile.** Service khởi động
+  với config cũ sẽ chỉ nghe cổng 80 và log `server is listening only on the
+  HTTP port, so no automatic HTTPS will be applied` — cổng 443 không bao giờ
+  mở.
+- **Đừng tự thêm header CORS trong Caddy.** Proof server đã trả sẵn; thêm nữa
+  thành hai giá trị `Access-Control-Allow-Origin` và trình duyệt từ chối cả
+  hai.
+
+Kiểm chứng trước khi deploy lại — đây là phép thử phân biệt được hai bên:
+
+```bash
+head -c 300000 /dev/urandom > big.bin
+curl -i -X POST https://<host>/prove -H "Origin: https://<app>" \
+  -H "Content-Type: application/octet-stream" --data-binary @big.bin \
+  | grep -iE "^HTTP|access-control-allow-origin"
+# Dung: HTTP/2 400 + access-control-allow-origin
+# Sai : HTTP/2 403 khong header  -> van dang di qua ELB
+```
 - **A genuinely separate school.** The `/api/school/graphql` route stands in for
   an external institution inside the same deployment. Honest, but a
   single-process arrangement — Option B is the architecture as designed.
